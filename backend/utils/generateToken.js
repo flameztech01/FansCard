@@ -5,13 +5,12 @@ const generateToken = (res, userId) => {
 
   const isProd = process.env.NODE_ENV === "production";
 
-  res.cookie("jwt", token, {
-    httpOnly: true,
-    secure: isProd,                 // ✅ false on localhost, true on https production
-    sameSite: isProd ? "none" : "lax", // ✅ lax on localhost
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
+    res.cookie('jwt', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development' || true,
+        sameSite: 'None',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
 
   return token;
 };
