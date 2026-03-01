@@ -33,6 +33,7 @@ const router = createBrowserRouter([
       { index: true, element: <Homepage /> },
       { path: "/login", element: <Login /> },
       {path: '/signup', element: <Register />},
+      { path: "/admin/login", element: <AdminLogin /> },
 
       {
         element: <PrivateRoute />,
@@ -42,7 +43,7 @@ const router = createBrowserRouter([
           { path: "payment", element: <DashboardPayment /> },
           { path: "/verify-payment", element: <VerifyPayment /> },
 
-          { path: "/admin/login", element: <AdminLogin /> },
+          
           { path: "/admin/dashboard", element: <AdminDashboard /> },
         ],
       },
