@@ -68,7 +68,7 @@ const googleAuth = asyncHandler(async (req, res) => {
     });
   }
 
-  generateToken(res, user._id);
+ const token = generateToken(res, user._id); 
 
   res.status(200).json({
     _id: user._id,
