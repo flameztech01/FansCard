@@ -14,7 +14,6 @@ import {
   UserCheck,
   UserX,
   Download,
-  MoreVertical
 } from 'lucide-react';
 import { useGetUsersQuery, useUpdateUserStatusMutation } from '../slices/adminApiSlice';
 

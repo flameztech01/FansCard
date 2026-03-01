@@ -1,18 +1,18 @@
 // DashboardCard.tsx
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  // ShoppingBag,
+  ShoppingBag,
   AlertCircle,
   CheckCircle,
-  // Clock,
+  Clock,
   Download,
   Printer,
   Info,
   Shield,
   // Calendar,
   // Hash,
-  // User,
+  User,
   Mail,
   Phone,
   CreditCard,
@@ -29,8 +29,8 @@ import jsPDF from "jspdf";
 
 interface PackageDetails {
   name: string;
-  bgGradientCss: string; // keep hex/rgb gradients
-  badgeBg: string;
+  bgGradientCss: string; // HEX/RGB gradient only
+  badgeBg: string; // HEX/RGB only
   icon: React.ReactNode;
   features: string[];
 }
@@ -59,10 +59,8 @@ const packageDetails: Record<string, PackageDetails> = {
   },
 };
 
-// ID-1 size (credit card)
 const ID_CARD_MM = { w: 85.6, h: 54 };
 
-// helpers
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const waitForFonts = async () => {
@@ -85,10 +83,13 @@ const waitForImages = async (root: HTMLElement) => {
   );
 };
 
-const DashboardCard = () => {
+const DashboardCard: React.FC = () => {
   const { data: userInfo, isLoading, error, refetch } = useGetUserInfoQuery({});
   const cardRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
+  // picture saved during login
   const googlePicture = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("userInfo") || "null")?.picture as string | undefined;
@@ -129,44 +130,29 @@ const DashboardCard = () => {
       .toUpperCase()
       .slice(0, 2);
 
-  /**
-   * ✅ Modern capture using html-to-image (toPng)
-   * - More compatible than html2canvas
-   */
+  // ✅ capture via html-to-image
   const captureCardPng = async () => {
     if (!cardRef.current) return null;
-
     const el = cardRef.current;
 
     await waitForFonts();
     await waitForImages(el);
 
-    // toPng returns data URL
-    // NOTE: if you use external images, keep useCORS true + correct CORS headers
     const dataUrl = await toPng(el, {
       cacheBust: true,
       pixelRatio: 4,
       backgroundColor: "#ffffff",
-      // prevent random emoji/font fallback differences
-      style: {
-        transform: "none",
-      },
-      // Optional: skip elements you don't want
-      filter: () => {
-        // keep everything inside the card
-        return true;
-      },
+      style: { transform: "none" },
     });
 
     return dataUrl;
   };
 
-  /**
-   * ✅ Download: put PNG into exact ID-1 PDF
-   */
+  // ✅ Download PDF (ID-1 size)
   const handleDownloadCard = async () => {
-    if (!userInfo?.cardId) return;
+    if (!userInfo?.cardId || !cardRef.current) return;
 
+    setDownloading(true);
     try {
       const imgData = await captureCardPng();
       if (!imgData) return;
@@ -185,80 +171,73 @@ const DashboardCard = () => {
     } catch (e) {
       console.error("Download card failed:", e);
       alert("Failed to download card. Try again.");
+    } finally {
+      setDownloading(false);
     }
   };
 
-  /**
-   * ✅ Print: best quality is printing the HTML directly (NO canvas)
-   * This keeps gradients/text sharp, and avoids any CSS parsing library.
-   */
-  const handlePrintCard = () => {
+  // ✅ Print HTML directly (best quality)
+  const handlePrintCard = async () => {
     if (!cardRef.current) return;
 
-    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
-    if (!printWindow) {
-      alert("Popup blocked. Allow popups to print the card.");
-      return;
+    setPrinting(true);
+    try {
+      await waitForFonts();
+      await waitForImages(cardRef.current);
+
+      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+      if (!printWindow) {
+        alert("Popup blocked. Allow popups to print the card.");
+        return;
+      }
+
+      const title = `Fan Card - ${userInfo?.name || "Card"}`;
+      const cardHTML = cardRef.current.outerHTML;
+
+      printWindow.document.open();
+      printWindow.document.write(`
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>${title}</title>
+
+            <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+            <style>
+              @page { size: ${ID_CARD_MM.w}mm ${ID_CARD_MM.h}mm; margin: 0; }
+              html, body { margin: 0; padding: 0; background: #fff; }
+              body { display:flex; align-items:center; justify-content:center; height: 100vh; }
+              .print-card { width: ${ID_CARD_MM.w}mm !important; height: ${ID_CARD_MM.h}mm !important; }
+            </style>
+          </head>
+          <body>
+            <div class="print-card">${cardHTML}</div>
+            <script>
+              window.onload = function () {
+                setTimeout(function () {
+                  window.focus();
+                  window.print();
+                  window.onafterprint = function () { window.close(); };
+                }, 200);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } catch (e) {
+      console.error("Print card failed:", e);
+      alert("Failed to print card. Try again.");
+    } finally {
+      setPrinting(false);
     }
-
-    const title = `Fan Card - ${userInfo?.name || "Card"}`;
-
-    // clone card HTML only
-    const cardHTML = cardRef.current.outerHTML;
-
-    // IMPORTANT:
-    // - Include Tailwind in print window (so the same classes render)
-    // - Also add @page size to ID card size
-    // - Hide everything except the card
-    printWindow.document.open();
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>${title}</title>
-
-          <!-- Tailwind CDN (works for print window) -->
-          <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-
-          <style>
-            @page { size: ${ID_CARD_MM.w}mm ${ID_CARD_MM.h}mm; margin: 0; }
-            html, body { margin: 0; padding: 0; background: #fff; }
-            body {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-            }
-            /* Force exact physical size */
-            .print-card {
-              width: ${ID_CARD_MM.w}mm !important;
-              height: ${ID_CARD_MM.h}mm !important;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-card">
-            ${cardHTML}
-          </div>
-
-          <script>
-            window.onload = function () {
-              setTimeout(function () {
-                window.focus();
-                window.print();
-                window.onafterprint = function () { window.close(); };
-              }, 200);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
   };
 
-  // ---------------- UI states ----------------
+  // =========================
+  // LOADING
+  // =========================
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -273,6 +252,9 @@ const DashboardCard = () => {
     );
   }
 
+  // =========================
+  // NOT SIGNED IN / ERROR
+  // =========================
   if (error || !userInfo) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -291,9 +273,146 @@ const DashboardCard = () => {
     );
   }
 
-  // ✅ only showing approved part here since that’s where the card is
+  // =========================
+  // PENDING PAYMENT
+  // =========================
+  if (userInfo.status === "pending_payment") {
+    const selectedPkg = userInfo.packageType ? packageDetails[userInfo.packageType] : undefined;
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex items-center space-x-4">
+            {googlePicture ? (
+              <img
+                src={googlePicture}
+                alt={userInfo.name}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                className="h-12 w-12 rounded-full border-2 border-gray-200"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+                {userInfo.name?.charAt(0) || "F"}
+              </div>
+            )}
+
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
+              </h2>
+              <p className="text-sm text-gray-500 flex items-center gap-1">
+                <Mail className="h-4 w-4" /> {userInfo.email}
+              </p>
+              <p className="text-sm text-gray-500 flex items-center gap-1">
+                <Phone className="h-4 w-4" /> {userInfo.phone || "No phone"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex-1 max-w-2xl">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-yellow-800">Complete Your Payment</h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Your account has been created! Please complete the payment to activate your card.
+                  </p>
+
+                  {(userInfo.packageType || userInfo.amount) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {userInfo.packageType && (
+                        <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded inline-flex items-center gap-1">
+                          <Award className="h-3 w-3" />
+                          Selected: {selectedPkg?.name || userInfo.packageType} Plan
+                        </span>
+                      )}
+                      {userInfo.amount && (
+                        <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                          Amount: ₦{Number(userInfo.amount).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Link
+            to="/packages"
+            className="flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors text-sm whitespace-nowrap"
+          >
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Proceed to Payment
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // PENDING VERIFICATION
+  // =========================
+  if (userInfo.status === "pending_verification") {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex items-center space-x-4">
+            {googlePicture ? (
+              <img
+                src={googlePicture}
+                alt={userInfo.name}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                className="h-12 w-12 rounded-full border-2 border-gray-200"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+                {userInfo.name?.charAt(0) || "F"}
+              </div>
+            )}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
+              </h2>
+              <p className="text-sm text-gray-500">{userInfo.email}</p>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <Clock className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-blue-800">
+                    Payment Received - Pending Verification
+                  </h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Thank you for your payment! Your card is being verified by our team.
+                    This usually takes 24-48 hours. We'll notify you once it's approved.
+                  </p>
+                  {userInfo.paymentDate && (
+                    <p className="text-xs text-blue-600 mt-2">
+                      Payment Date: {new Date(userInfo.paymentDate).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // APPROVED (SHOW CARD)
+  // =========================
   if (userInfo.status === "approved") {
-    const pkg = packageDetails[userInfo.packageType || "basic"] || packageDetails.basic;
+    const packageType = userInfo.packageType || "basic";
+    const pkg = packageDetails[packageType] || packageDetails.basic;
 
     if (!userInfo.cardId) {
       return (
@@ -351,25 +470,52 @@ const DashboardCard = () => {
                   <span className="flex items-center text-sm text-gray-500">
                     <Phone className="h-3 w-3 mr-1" /> {userInfo.phone || "No phone"}
                   </span>
+                  <span className="flex items-center text-sm text-gray-500">
+                    <User className="h-3 w-3 mr-1" /> Member
+                  </span>
                 </div>
               </div>
             </div>
 
+            {/* Actions */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleDownloadCard}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                disabled={downloading}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm text-white ${
+                  downloading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                }`}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Download ID Card
+                {downloading ? "Preparing..." : "Download ID Card"}
               </button>
+
               <button
                 onClick={handlePrintCard}
-                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                disabled={printing}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm text-white ${
+                  printing ? "bg-gray-400 cursor-not-allowed" : "bg-gray-600 hover:bg-gray-700"
+                }`}
               >
                 <Printer className="h-4 w-4 mr-2" />
-                Print ID Card
+                {printing ? "Opening..." : "Print ID Card"}
               </button>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{pkg.name}</p>
+              <p className="text-xs text-gray-500">Membership Tier</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{formatCardId(userInfo.cardId)}</p>
+              <p className="text-xs text-gray-500">Card Number</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{getExpiryDate(userInfo.createdAt)}</p>
+              <p className="text-xs text-gray-500">Expiry Date</p>
             </div>
           </div>
         </div>
@@ -381,7 +527,7 @@ const DashboardCard = () => {
             className="relative w-[85.6mm] h-[54mm] overflow-hidden rounded-xl shadow-2xl print:shadow-none border-2 border-gray-300 font-sans"
             style={{ background: pkg.bgGradientCss }}
           >
-            {/* Pattern */}
+            {/* Secure Pattern */}
             <div
               className="absolute inset-0"
               style={{
@@ -402,6 +548,7 @@ const DashboardCard = () => {
 
             {/* Content */}
             <div className="relative z-10 p-3 h-full flex flex-col text-white">
+              {/* Header Row */}
               <div className="flex justify-between items-start">
                 <div className="flex items-center space-x-2">
                   <Shield className="h-5 w-5 text-white" />
@@ -449,6 +596,7 @@ const DashboardCard = () => {
                 )}
               </div>
 
+              {/* Name */}
               <div className="mt-1">
                 <p className="text-[8px] tracking-wider" style={{ color: "rgba(255,255,255,0.6)" }}>
                   CARD HOLDER
@@ -464,6 +612,7 @@ const DashboardCard = () => {
                 </div>
               </div>
 
+              {/* Details */}
               <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[8px]">
                 <div className="rounded p-1" style={{ background: "rgba(255,255,255,0.10)" }}>
                   <p className="text-[6px]" style={{ color: "rgba(255,255,255,0.55)" }}>
@@ -491,6 +640,24 @@ const DashboardCard = () => {
                 </div>
               </div>
 
+              {/* Strip */}
+              <div className="mt-1 flex items-center space-x-1">
+                <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: "rgba(255,255,255,0.20)" }}>
+                  <span className="text-[6px]">●●</span>
+                </div>
+                <div
+                  className="flex-1 h-1 rounded-full"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, rgba(255,255,255,0.4), rgba(255,255,255,0.65), rgba(255,255,255,0.4))",
+                  }}
+                />
+                <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: "rgba(255,255,255,0.20)" }}>
+                  <span className="text-[6px]">●●</span>
+                </div>
+              </div>
+
+              {/* Footer */}
               <div className="mt-auto pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.20)" }}>
                 <div className="flex justify-between items-center text-[5px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                   <div className="flex items-center space-x-2">
@@ -502,8 +669,30 @@ const DashboardCard = () => {
                     <span>{String(userInfo.email).split("@")[1] || "global"}</span>
                   </div>
                 </div>
+
+                <div className="flex justify-between items-center mt-0.5">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 rounded-full" style={{ background: "#FACC15" }} />
+                    <div className="w-2 h-2 rounded-full" style={{ background: "#60A5FA" }} />
+                    <div className="w-2 h-2 rounded-full" style={{ background: "#4ADE80" }} />
+                  </div>
+                  <span className="text-[4px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    {String(userInfo._id || "").slice(-8)}
+                  </span>
+                </div>
               </div>
 
+              {/* Holographic stripe */}
+              <div
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-16"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(250,204,21,0.75), rgba(192,132,252,0.65), rgba(96,165,250,0.65))",
+                  opacity: 0.65,
+                }}
+              />
+
+              {/* Microchip */}
               <div className="absolute left-1 bottom-6" style={{ opacity: 0.2 }}>
                 <CreditCard className="h-6 w-6" />
               </div>
@@ -511,7 +700,7 @@ const DashboardCard = () => {
           </div>
         </div>
 
-        {/* Features */}
+        {/* Card Features */}
         <div className="grid md:grid-cols-3 gap-4 no-print">
           {pkg.features.map((feature, index) => (
             <div key={index} className="bg-white rounded-lg p-3 border border-gray-100 flex items-center space-x-2">
@@ -520,12 +709,112 @@ const DashboardCard = () => {
             </div>
           ))}
         </div>
+
+        {/* Quick Actions */}
+        <div className="flex justify-between items-center no-print">
+          <Link to="/support" className="text-sm text-blue-600 hover:text-blue-700">
+            Need help with your card?
+          </Link>
+          <Link
+            to="/packages"
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors text-sm"
+          >
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Upgrade Package
+          </Link>
+        </div>
       </div>
     );
   }
 
-  // keep your other status blocks (pending_payment, pending_verification, rejected) as-is
-  return null;
+  // =========================
+  // REJECTED
+  // =========================
+  if (userInfo.status === "rejected") {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex items-center space-x-4">
+            {googlePicture ? (
+              <img
+                src={googlePicture}
+                alt={userInfo.name}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                className="h-12 w-12 rounded-full border-2 border-gray-200"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+                {userInfo.name?.charAt(0) || "F"}
+              </div>
+            )}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
+              </h2>
+              <p className="text-sm text-gray-500">{userInfo.email}</p>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-red-800">Payment Not Approved</h3>
+                  <p className="text-sm text-red-700 mt-1">
+                    Your payment verification was not successful. Please contact support or try again.
+                  </p>
+                  <Link
+                    to="/support"
+                    className="inline-block mt-3 text-sm text-red-600 hover:text-red-800 font-medium"
+                  >
+                    Contact Support →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Link
+            to="/packages"
+            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
+          >
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Try Again
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // FALLBACK (unknown status)
+  // =========================
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+      <div className="flex items-start space-x-3">
+        <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 className="font-semibold text-gray-900">Dashboard</h3>
+          <p className="text-sm text-gray-600 mt-1">
+            We couldn’t determine your account status. Please refresh or contact support.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Refresh
+            </button>
+            <Link to="/support" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+              Contact Support
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default DashboardCard;
