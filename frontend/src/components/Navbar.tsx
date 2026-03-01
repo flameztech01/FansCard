@@ -127,7 +127,7 @@ const Navbar = () => {
                   Login
                 </Link>
                 <Link
-                  to="/register"
+                  to="/signup"
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-md hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 transform hover:scale-105"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
@@ -220,7 +220,7 @@ const Navbar = () => {
                   </div>
                 </Link>
                 <Link
-                  to="/register"
+                  to="/signup"
                   className="block px-3 py-2 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-md hover:from-blue-700 hover:to-purple-700"
                   onClick={() => setIsOpen(false)}
                 >
