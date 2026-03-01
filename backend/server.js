@@ -27,8 +27,8 @@ app.use(cookieParser());
 
 // ✅ CORS FIRST (must be before routes)
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? ['http://localhost:3030']
-    : ['http://localhost:3030'];
+    ? ['http://localhost:3030', 'https://fans-card.vercel.app']
+    : ['http://localhost:3030', 'https://fans-card.vercel.app'];
 
 app.use(cors({
     origin: function(origin, callback) {
