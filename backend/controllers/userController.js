@@ -80,6 +80,7 @@ const googleAuth = asyncHandler(async (req, res) => {
     amount: user.amount,
     paid: user.paid,
     status: user.status,
+    token,
   });
 });
 
