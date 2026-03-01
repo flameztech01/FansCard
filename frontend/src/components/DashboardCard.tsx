@@ -152,7 +152,7 @@ const DashboardCard = () => {
         transform: "none",
       },
       // Optional: skip elements you don't want
-      filter: (node) => {
+      filter: () => {
         // keep everything inside the card
         return true;
       },
