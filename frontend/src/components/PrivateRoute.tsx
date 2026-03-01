@@ -20,7 +20,7 @@ type RootState = {
 export const PrivateRoute: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
-  return userInfo ? <Outlet /> : <Navigate to="/signin" replace />;
+  return userInfo ? <Outlet /> : <Navigate to="/signup" replace />;
 };
 
 export const AdminRoute: React.FC = () => {
@@ -29,7 +29,7 @@ export const AdminRoute: React.FC = () => {
   // ✅ allow admin if either isAdmin === true OR role === "admin"
   const isAdmin = Boolean(userInfo?.isAdmin || userInfo?.role === "admin");
 
-  if (!userInfo) return <Navigate to="/signin" replace />;
+  if (!userInfo) return <Navigate to="/signup" replace />;
   if (!isAdmin) return <Navigate to="/unauthorized" replace />;
 
   return <Outlet />;

@@ -21,6 +21,9 @@ import AdminLogin from "./screens/AdminLogin.tsx";
 import AdminDashboard from "./screens/AdminDashboard.tsx";
 
 import PrivateRoute from "./components/PrivateRoute.tsx";
+import AdminPrivateRoute from "./components/AdminPrivateRoute.tsx";
+
+import NotFound from "./components/NotFound.tsx";
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 console.log("GOOGLE CLIENT ID IN APP:", JSON.stringify(clientId));
@@ -34,6 +37,7 @@ const router = createBrowserRouter([
       { path: "/login", element: <Login /> },
       {path: '/signup', element: <Register />},
       { path: "/admin/login", element: <AdminLogin /> },
+      {path: '*', element: <NotFound />},
 
       {
         element: <PrivateRoute />,
@@ -44,9 +48,14 @@ const router = createBrowserRouter([
           { path: "/verify-payment", element: <VerifyPayment /> },
 
           
-          { path: "/admin/dashboard", element: <AdminDashboard /> },
+       
         ],
       },
+      {element: <AdminPrivateRoute />, 
+        children: [
+          { path: "/admin/dashboard", element: <AdminDashboard /> },
+        ]
+      }
     ],
   },
 ]);

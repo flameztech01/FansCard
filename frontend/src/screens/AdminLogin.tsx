@@ -23,7 +23,7 @@ const AdminLogin = () => {
   // ✅ If already logged in as admin, go dashboard
   useEffect(() => {
     if (adminInfo?._id) {
-      navigate("/admin/dashboard");
+      navigate("/admin/dashboard", { replace: true });
     }
   }, [adminInfo, navigate]);
 
@@ -38,23 +38,25 @@ const AdminLogin = () => {
 
     try {
       /**
-       * Expect backend to return something like:
-       *  - Option A: { _id, name, email, role }  (cookie already set)
-       *  - Option B: { admin: {...}, token: "..." } (cookie or token)
+       * Expect backend to return either:
+       *  A) { _id, name, email, role, token }
+       *  B) { admin: { _id, name, email, role }, token }
        */
       const res: any = await login({ email, password }).unwrap();
 
-      // ✅ normalize response
       const adminPayload =
-        res?.admin
-          ? { ...res.admin, token: res.token } // if backend returns {admin, token}
-          : res; // if backend returns admin fields directly
+        res?.admin && res?.token
+          ? { ...res.admin, token: res.token }
+          : res;
 
+      // ✅ store ONLY via redux -> authSlice will handle localStorage(adminInfo)
       dispatch(setAdminCredentials(adminPayload));
 
-      navigate("/admin/dashboard");
+      navigate("/admin/dashboard", { replace: true });
     } catch (err: any) {
-      setError(err?.data?.message || "Login failed. Please check your credentials.");
+      setError(
+        err?.data?.message || "Login failed. Please check your credentials."
+      );
     }
   };
 
@@ -68,7 +70,9 @@ const AdminLogin = () => {
             <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Admin Login</h1>
-          <p className="text-blue-100 mt-2">Sign in to access the admin dashboard</p>
+          <p className="text-blue-100 mt-2">
+            Sign in to access the admin dashboard
+          </p>
         </div>
 
         <div className="p-8">

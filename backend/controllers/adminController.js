@@ -3,8 +3,7 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import Admin from "../models/adminModel.js";
 import User from "../models/userModel.js";
-import generateToken from "../utils/generateToken.js"; // should set cookie "jwt"
-import generateAdminToken from "../utils/generateAdminToken.js"; 
+import generateAdminToken from "../utils/generateAdminToken.js";
 // ✅ If you don't have generateAdminToken.js, you can use generateToken(res, admin._id)
 // but it's better to separate admin cookie name (e.g. "admin_jwt") to avoid conflicts.
 
@@ -87,6 +86,8 @@ const signup = asyncHandler(async (req, res) => {
  * @route   POST /api/admin/login
  * @access  Public
  */
+
+
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -116,15 +117,13 @@ const login = asyncHandler(async (req, res) => {
   admin.lastLogin = new Date();
   await admin.save();
 
-  // ✅ token (choose one)
-  // generateToken(res, admin._id);
-  if (typeof generateAdminToken === "function") {
-    generateAdminToken(res, admin._id);
-  } else {
-    generateToken(res, admin._id);
-  }
+  // ✅ Set admin_jwt cookie + return token
+  const token = generateAdminToken(res, admin._id);
 
-  res.status(200).json(safeAdmin(admin));
+  res.status(200).json({
+    ...safeAdmin(admin),
+    token, // optional but good to include
+  });
 });
 
 /**
