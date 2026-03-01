@@ -1,49 +1,44 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FcGoogle } from 'react-icons/fc';
-import { GoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
-import { useLoginMutation } from '../slices/userApiSlice';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { FcGoogle } from "react-icons/fc";
+import { GoogleLogin } from "@react-oauth/google";
+import { useDispatch } from "react-redux";
+import type { AppDispatch } from "../store"; // adjust if your store exports AppDispatch
+import { setCredentials } from "../slices/authSlice";
+import { useLoginMutation } from "../slices/userApiSlice";
 
 const Login = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
+
   const [login, { isLoading }] = useLoginMutation();
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
       setError(null);
-      
-      // Decode the credential to get user info
-      const decoded: any = jwtDecode(credentialResponse.credential);
-      console.log('Logged in user:', decoded);
-      
-      // Store user info in localStorage
-      localStorage.setItem('userInfo', JSON.stringify({
-        name: decoded.name,
-        email: decoded.email,
-        picture: decoded.picture,
-        sub: decoded.sub
-      }));
-      
-      // Send the credential to your backend
-      const response = await login({ 
-        token: credentialResponse.credential 
+
+      // send Google credential to backend
+      const response = await login({
+        token: credentialResponse.credential,
       }).unwrap();
-      
-      // Store the returned token/session
-      localStorage.setItem('token', response.token);
-      
-      // Redirect to dashboard
-      navigate('/dashboard');
+
+      /**
+       * response should include token + user fields (from backend)
+       * Example:
+       * { _id, name, email, phone, picture?, ... , token }
+       */
+      dispatch(setCredentials(response)); // ✅ stores in redux + localStorage(userInfo)
+
+      navigate("/dashboard");
     } catch (err) {
-      setError('Failed to login with Google. Please try again.');
-      console.error('Login error:', err);
+      setError("Failed to login with Google. Please try again.");
+      console.error("Login error:", err);
     }
   };
 
   const handleGoogleError = () => {
-    setError('Google login failed. Please try again.');
+    setError("Google login failed. Please try again.");
   };
 
   // Custom loading button using FcGoogle
@@ -70,8 +65,8 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="inline-block text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6"
           >
             FanCardStore
@@ -119,20 +114,50 @@ const Login = () => {
           {/* Features */}
           <div className="space-y-3">
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               No password to remember
             </div>
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Secure Google authentication
             </div>
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Instant access to your account
             </div>
@@ -142,12 +167,18 @@ const Login = () => {
         {/* Footer */}
         <div className="text-center space-y-2">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+            Don't have an account?{" "}
+            <Link
+              to="/signup"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               Sign up here
             </Link>
           </p>
-          <Link to="/" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+          <Link
+            to="/"
+            className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+          >
             ← Back to Home
           </Link>
         </div>
