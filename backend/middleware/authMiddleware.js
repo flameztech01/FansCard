@@ -1,11 +1,30 @@
+// middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Admin from "../models/adminModel.js";
 
-// USER PROTECT (uses cookie: jwt)
+/**
+ * Helper: get token from Authorization header (Bearer) OR cookie
+ */
+const getToken = (req, cookieName) => {
+  // 1) Authorization: Bearer <token>
+  const authHeader = req.headers?.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
+  }
+
+  // 2) Cookie fallback
+  if (req.cookies && req.cookies[cookieName]) {
+    return req.cookies[cookieName];
+  }
+
+  return null;
+};
+
+// USER PROTECT: accepts Bearer token OR cookie "jwt"
 export const protect = asyncHandler(async (req, res, next) => {
-  const token = req.cookies?.jwt;
+  const token = getToken(req, "jwt");
 
   if (!token) {
     res.status(401);
@@ -14,13 +33,16 @@ export const protect = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.userId).select("-password");
 
-    if (!req.user) {
+    // decoded.userId expected from your generateToken()
+    const user = await User.findById(decoded.userId).select("-password");
+
+    if (!user) {
       res.status(401);
       throw new Error("User not found");
     }
 
+    req.user = user;
     next();
   } catch (err) {
     res.status(401);
@@ -28,9 +50,9 @@ export const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-// ADMIN PROTECT (uses cookie: admin_jwt)
+// ADMIN PROTECT: accepts Bearer token OR cookie "admin_jwt"
 export const adminProtect = asyncHandler(async (req, res, next) => {
-  const token = req.cookies?.admin_jwt;
+  const token = getToken(req, "admin_jwt");
 
   if (!token) {
     res.status(401);
@@ -40,6 +62,7 @@ export const adminProtect = asyncHandler(async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // decoded.adminId expected from your admin token generator
     const admin = await Admin.findById(decoded.adminId).select("-password");
 
     if (!admin) {
@@ -52,9 +75,7 @@ export const adminProtect = asyncHandler(async (req, res, next) => {
       throw new Error("Admin account disabled");
     }
 
-    // attach admin
     req.admin = admin;
-
     next();
   } catch (err) {
     res.status(401);
@@ -62,7 +83,7 @@ export const adminProtect = asyncHandler(async (req, res, next) => {
   }
 });
 
-// OPTIONAL: only super_admin
+// ONLY SUPER ADMIN
 export const superAdminProtect = asyncHandler(async (req, res, next) => {
   if (!req.admin) {
     res.status(401);
