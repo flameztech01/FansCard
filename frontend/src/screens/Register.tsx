@@ -40,13 +40,13 @@ const Register: React.FC = () => {
         return;
       }
 
-      // Validate phone number
+      // ✅ Validate phone number
       if (!phone || phone.trim() === "") {
         setError("Please enter your phone number");
         return;
       }
 
-      // Decode token (optional - for local UI)
+      // ✅ Decode only to grab picture/sub (optional fields for UI)
       const decoded: any = jwtDecode(credentialResponse.credential);
 
       // ✅ Call backend login/register
@@ -55,31 +55,16 @@ const Register: React.FC = () => {
         phone: phone.trim(),
       }).unwrap();
 
-      /**
-       * ✅ IMPORTANT:
-       * Your PrivateRoute depends on Redux auth.userInfo,
-       * so we MUST update Redux here.
-       *
-       * response should contain at least:
-       * { token, name, email, ... }
-       */
-      dispatch(setCredentials(response));
-
-      // ✅ Optional: store Google picture for your card UI
-      // Merge with response so localStorage contains both backend + picture
-      const mergedUserInfo = {
-        ...response,
-        picture: decoded?.picture,
+      // ✅ One source of truth: merge extras then store via Redux
+      const userInfoToStore = {
+        ...response, // includes token returned by backend
+        picture: decoded?.picture ?? response?.picture,
         sub: decoded?.sub,
       };
-      localStorage.setItem("userInfo", JSON.stringify(mergedUserInfo));
 
-      // (Optional) if you still store token separately
-      if (response?.token) {
-        localStorage.setItem("token", response.token);
-      }
+      // ✅ This will store to redux + localStorage(userInfo) in your authSlice
+      dispatch(setCredentials(userInfoToStore));
 
-      // ✅ NOW redirect will work
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       console.error("Register error:", err);
@@ -121,8 +106,12 @@ const Register: React.FC = () => {
           >
             FanCardStore
           </Link>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Create Account</h2>
-          <p className="text-gray-600">Sign up with Google to get your fan card</p>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
+            Create Account
+          </h2>
+          <p className="text-gray-600">
+            Sign up with Google to get your fan card
+          </p>
         </div>
 
         {/* Main Card */}
@@ -136,7 +125,10 @@ const Register: React.FC = () => {
 
           {/* Phone Number Field */}
           <div className="space-y-2">
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700"
+            >
               Phone Number <span className="text-red-500">*</span>
             </label>
             <input
@@ -156,8 +148,9 @@ const Register: React.FC = () => {
           {/* Info Box */}
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <span className="font-semibold">Quick setup:</span> Sign up once, then choose your package and make
-              payment to activate your digital card.
+              <span className="font-semibold">Quick setup:</span> Sign up once,
+              then choose your package and make payment to activate your digital
+              card.
             </p>
           </div>
 
@@ -180,33 +173,75 @@ const Register: React.FC = () => {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">Secure registration</span>
+              <span className="px-4 bg-white text-gray-500">
+                Secure registration
+              </span>
             </div>
           </div>
 
           {/* Features */}
           <div className="space-y-3">
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               No password to remember
             </div>
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Secure Google authentication
             </div>
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Choose your package after signup
             </div>
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Pay with crypto to activate
             </div>
@@ -229,11 +264,17 @@ const Register: React.FC = () => {
         <div className="text-center space-y-2">
           <p className="text-sm text-gray-600">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link
+              to="/login"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               Sign in here
             </Link>
           </p>
-          <Link to="/" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+          <Link
+            to="/"
+            className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+          >
             ← Back to Home
           </Link>
         </div>
