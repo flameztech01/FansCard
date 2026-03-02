@@ -35,6 +35,19 @@ export const adminApiSlice = apiSlice.injectEndpoints({
         body,
       }),
     }),
+    generateLink: builder.mutation({
+      query: (data) => ({
+        url: `${ADMIN_URL}/celeb-links`,
+        method: "POST",
+        body: data,
+      })
+    }),
+    getGeneratedLinks: builder.query({
+      query: () => ({
+        url: `${ADMIN_URL}/celeb-links`,
+        method: "GET",
+      })
+    })
   }),
 });
 
@@ -43,4 +56,6 @@ export const {
   useGetUsersQuery,
   useGetSingleUserQuery,
   useUpdateUserStatusMutation,
+  useGenerateLinkMutation,
+  useGetGeneratedLinksQuery,
 } = adminApiSlice;

@@ -31,8 +31,8 @@ const DashboardPayment = () => {
   const packageData = location.state?.package as PackageInfo;
   const amount = location.state?.amount as number;
 
-  // Mock wallet address - in production, this would come from your backend
-  const walletAddress = "0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
+  // BNB Smart Chain (BEP-20) wallet address
+  const walletAddress = "0x1e846d44caf81c8a98a17298cee1ae1e25129735";
   
   // Mock transaction hash - user would input this after payment
   const [transactionHash, setTransactionHash] = useState('');
@@ -140,18 +140,18 @@ const DashboardPayment = () => {
                   <span className="font-semibold text-gray-900">{packageData.name}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Amount (NGN):</span>
-                  <span className="font-semibold text-gray-900">₦{amount.toLocaleString()}</span>
+                  <span className="text-gray-600">Amount (USD):</span>
+                  <span className="font-semibold text-gray-900">${amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                  <span className="text-gray-600">Amount (BTC):</span>
+                  <span className="text-gray-600">Amount (BNB):</span>
                   <span className="font-semibold text-gray-900">
-                    {(amount / 50000000).toFixed(8)} BTC
+                    {(amount / 250).toFixed(4)} BNB
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Network:</span>
-                  <span className="font-semibold text-gray-900">Ethereum (ERC-20)</span>
+                  <span className="font-semibold text-gray-900">BNB Smart Chain (BEP-20)</span>
                 </div>
               </div>
             </div>
@@ -190,7 +190,7 @@ const DashboardPayment = () => {
               </div>
               <p className="text-xs text-gray-500 mt-2 flex items-center">
                 <Info className="h-3 w-3 mr-1" />
-                Send only ERC-20 USDT or ETH to this address. Other networks will result in loss of funds.
+                Send only BEP-20 BNB, USDT, or BUSD to this address. Other networks will result in loss of funds.
               </p>
             </div>
 
@@ -220,15 +220,15 @@ const DashboardPayment = () => {
               <ol className="space-y-3 text-sm text-blue-700">
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">1</span>
-                  Copy the wallet address above
+                  Copy the BNB Smart Chain (BEP-20) wallet address above
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">2</span>
-                  Send exactly <span className="font-bold mx-1">₦{amount.toLocaleString()}</span> worth of USDT/ETH to this address
+                  Send exactly <span className="font-bold mx-1">${amount.toLocaleString()}</span> worth of BNB/USDT/BUSD to this address
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">3</span>
-                  Wait for 1-3 confirmations on the blockchain
+                  Wait for 1-3 confirmations on the BNB Smart Chain
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">4</span>
@@ -273,8 +273,8 @@ const DashboardPayment = () => {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500 mb-3">Supported Networks</p>
           <div className="flex justify-center space-x-4">
+            <span className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-600">BNB Smart Chain (BEP-20)</span>
             <span className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-600">Ethereum (ERC-20)</span>
-            <span className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-600">Binance Smart Chain (BEP-20)</span>
             <span className="px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-600">Polygon</span>
           </div>
         </div>

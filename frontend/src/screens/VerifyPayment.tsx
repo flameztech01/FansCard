@@ -163,7 +163,7 @@ const VerifyPayment: React.FC = () => {
             </h2>
 
             <p className="text-gray-600 mb-8">
-              Your payment receipt has been submitted for verification. We’ll
+              Your payment receipt has been submitted for verification. We'll
               review it and update your status once confirmed.
             </p>
 
@@ -178,7 +178,7 @@ const VerifyPayment: React.FC = () => {
                   <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside">
                     <li>Admin will verify your payment</li>
                     <li>Once approved, your card will be issued</li>
-                    <li>You’ll see your cardId after approval</li>
+                    <li>You'll see your cardId after approval</li>
                   </ul>
                 </div>
               </div>
@@ -238,7 +238,7 @@ const VerifyPayment: React.FC = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Amount:</span>
                 <span className="font-medium text-gray-900">
-                  ₦{amount.toLocaleString()}
+                  ${amount.toLocaleString()}
                 </span>
               </div>
               {transactionHash && (
@@ -251,6 +251,13 @@ const VerifyPayment: React.FC = () => {
               )}
 
               <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+                <span className="text-gray-600">Network:</span>
+                <span className="font-medium text-gray-900">
+                  BNB Smart Chain (BEP-20)
+                </span>
+              </div>
+
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Status After Upload:</span>
                 <span className="font-medium text-yellow-600">
                   Pending Verification
@@ -352,17 +359,23 @@ const VerifyPayment: React.FC = () => {
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
                     1
                   </span>
-                  Upload a clear screenshot/photo of your payment confirmation
+                  Upload a clear screenshot/photo of your BNB Smart Chain (BEP-20) payment confirmation
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
                     2
                   </span>
-                  Make sure the amount is visible: ₦{amount.toLocaleString()}
+                  Make sure the amount is visible: ${amount.toLocaleString()}
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
                     3
+                  </span>
+                  The transaction hash should be clearly visible in the receipt
+                </li>
+                <li className="flex items-start">
+                  <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
+                    4
                   </span>
                   After upload your status becomes{" "}
                   <span className="font-semibold">Pending Verification</span>
@@ -395,7 +408,7 @@ const VerifyPayment: React.FC = () => {
 
             <p className="text-xs text-gray-400 text-center mt-4">
               By submitting, you confirm that this payment was made to the
-              provided wallet address.
+              provided BNB Smart Chain (BEP-20) wallet address.
             </p>
           </div>
         </div>

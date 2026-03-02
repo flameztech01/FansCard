@@ -6,6 +6,8 @@ import {
   getUsers,
   getUserById,
   updateUserStatusAdmin,
+  generateCelebLink,
+  getGeneratedLinks
 } from "../controllers/adminController.js";
 
 import { adminProtect } from "../middleware/authMiddleware.js";
@@ -32,5 +34,9 @@ router.post("/login", login);
 router.get("/users", adminProtect, getUsers);
 router.get("/users/:id", adminProtect, getUserById);
 router.put("/users/:id/status", adminProtect, updateUserStatusAdmin);
+
+// ✅ NEW
+router.post("/celeb-links", adminProtect, generateCelebLink);
+router.get("/celeb-links", adminProtect, getGeneratedLinks);
 
 export default router;

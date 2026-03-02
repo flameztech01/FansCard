@@ -3,6 +3,7 @@ import asyncHandler from "express-async-handler";
 import crypto from "crypto";
 import Admin from "../models/adminModel.js";
 import User from "../models/userModel.js";
+import CelebLink from "../models/celebLinkModel.js"
 import generateAdminToken from "../utils/generateAdminToken.js";
 // ✅ If you don't have generateAdminToken.js, you can use generateToken(res, admin._id)
 // but it's better to separate admin cookie name (e.g. "admin_jwt") to avoid conflicts.
@@ -265,10 +266,98 @@ const updateUserStatusAdmin = asyncHandler(async (req, res) => {
   });
 });
 
+const generateCelebLink = asyncHandler(async (req, res) => {
+  const { celebName, expiresInDays } = req.body;
+
+  if (!celebName || typeof celebName !== "string") {
+    res.status(400);
+    throw new Error("celebName is required");
+  }
+
+  const cleanName = celebName.trim();
+  if (cleanName.length < 2) {
+    res.status(400);
+    throw new Error("celebName is too short");
+  }
+
+  // ✅ slug for pretty URL (davido, burna-boy, etc.)
+  const slug = cleanName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "") // remove special chars
+    .trim()
+    .replace(/\s+/g, "-"); // spaces -> hyphen
+
+  // generate raw token (secure part)
+  const rawToken = crypto.randomBytes(24).toString("hex");
+
+  // hash token for DB storage
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  let expiresAt = null;
+  if (expiresInDays && Number(expiresInDays) > 0) {
+    expiresAt = new Date(
+      Date.now() + Number(expiresInDays) * 24 * 60 * 60 * 1000
+    );
+  }
+
+  const doc = await CelebLink.create({
+    celebName: cleanName,
+    tokenHash,
+    createdBy: req.user?._id || null,
+    expiresAt,
+    isActive: true,
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3030";
+
+  // ✅ NEW FORMAT: /fan/:slug/:token
+  const signupLink = `${frontendUrl}/fan/${slug}/${rawToken}`;
+
+  res.status(201).json({
+    message: "Celeb signup link created",
+    celebName: doc.celebName,
+    signupLink,
+    expiresAt: doc.expiresAt,
+  });
+});
+
+// ✅ Get all generated celeb links (for admin dashboard)
+// @route   GET /api/admin/celeb-links
+// @access  Private/Admin
+const getGeneratedLinks = asyncHandler(async (req, res) => {
+  const { search, active } = req.query;
+
+  const query = {};
+
+  // optional: filter active true/false
+  if (active !== undefined) {
+    // active can come as "true"/"false"
+    if (active === "true") query.isActive = true;
+    if (active === "false") query.isActive = false;
+  }
+
+  // optional: search by celebName
+  if (search && typeof search === "string") {
+    query.celebName = { $regex: search, $options: "i" };
+  }
+
+  const links = await CelebLink.find(query)
+    .sort({ createdAt: -1 })
+    .select("-__v"); // keep tokenHash hidden if you want, see below
+
+  // ✅ If you want to HIDE tokenHash from frontend, use this instead:
+  // const links = await CelebLink.find(query).sort({ createdAt: -1 }).select("-tokenHash -__v");
+
+  res.status(200).json(links);
+});
+
+
 export {
   signup,
   login,
   getUsers,
   getUserById,
   updateUserStatusAdmin,
+  generateCelebLink,
+  getGeneratedLinks
 };

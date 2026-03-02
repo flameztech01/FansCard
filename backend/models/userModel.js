@@ -29,6 +29,8 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
+     celebName: { type: String, trim: true, default: "" },
+
     // Each user gets one FanCard
     cardId: {
       type: String,

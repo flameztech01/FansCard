@@ -39,7 +39,7 @@ const packages: Package[] = [
   {
     id: "basic",
     name: "Basic",
-    price: 5000,
+    price: 700,
     description: "Perfect for casual fans",
     icon: <Star className="h-6 w-6" />,
     color: "from-gray-600 to-gray-700",
@@ -53,7 +53,7 @@ const packages: Package[] = [
   {
     id: "standard",
     name: "Standard",
-    price: 15000,
+    price: 1500,
     description: "Most popular choice",
     icon: <Zap className="h-6 w-6" />,
     color: "from-blue-600 to-blue-700",
@@ -69,7 +69,7 @@ const packages: Package[] = [
   {
     id: "premium",
     name: "Premium",
-    price: 30000,
+    price: 3000,
     description: "Ultimate fan experience",
     icon: <Crown className="h-6 w-6" />,
     color: "from-purple-600 to-pink-600",
@@ -248,7 +248,7 @@ const DashboardPackages = () => {
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-gray-600">Amount:</span>
                   <span className="font-semibold text-gray-900">
-                    ₦{userInfo.amount?.toLocaleString()}
+                    ${userInfo.amount?.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -338,7 +338,7 @@ const DashboardPackages = () => {
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-baseline">
                   <span className="text-3xl font-bold text-gray-900">
-                    ₦{pkg.price.toLocaleString()}
+                    ${pkg.price.toLocaleString()}
                   </span>
                   <span className="text-gray-500 ml-2">/one-time</span>
                 </div>
@@ -417,7 +417,7 @@ const DashboardPackages = () => {
               <div className="flex justify-between items-center mb-3">
                 <span className="text-gray-600">Price:</span>
                 <span className="font-semibold text-gray-900">
-                  ₦{selectedPackage.price.toLocaleString()}
+                  ${selectedPackage.price.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">

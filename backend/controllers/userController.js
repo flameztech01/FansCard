@@ -1,31 +1,46 @@
 import asyncHandler from "express-async-handler";
 import { OAuth2Client } from "google-auth-library";
+import { createHash } from "crypto";
 
 import User from "../models/userModel.js";
+import CelebLink from "../models/celebLinkModel.js";
 import generateToken from "../utils/generateToken.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const getUserInfoFromAccessToken = async (accessToken) => {
-  const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
+  const response = await fetch(
+    "https://www.googleapis.com/oauth2/v3/userinfo",
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
   if (!response.ok) throw new Error("Failed to fetch user info from Google");
   return response.json();
 };
 
-/**
- * @desc    Google Auth (create/login user)
- * @route   POST /api/users/google
- * @access  Public
- */
 const googleAuth = asyncHandler(async (req, res) => {
-  const { token: googleToken, phone } = req.body;
+  const { token: googleToken, phone, celebToken } = req.body;
 
   if (!googleToken) {
     res.status(400);
     throw new Error("Google token is required");
+  }
+
+  // ✅ if celebToken exists, resolve celebName from DB
+  let celebNameFromLink = "";
+  if (celebToken && typeof celebToken === "string") {
+    const tokenHash = createHash("sha256").update(celebToken).digest("hex");
+
+    const linkDoc = await CelebLink.findOne({
+      tokenHash,
+      isActive: true,
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+    });
+
+    if (linkDoc) {
+      celebNameFromLink = linkDoc.celebName;
+    }
   }
 
   let email, name;
@@ -35,7 +50,6 @@ const googleAuth = asyncHandler(async (req, res) => {
       idToken: googleToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-
     const payload = ticket.getPayload();
     email = payload?.email;
     name = payload?.name;
@@ -52,29 +66,37 @@ const googleAuth = asyncHandler(async (req, res) => {
 
   let user = await User.findOne({ email });
 
-  // create user if not exists (password required in your model)
   if (!user) {
-    const randomPassword = `${Date.now()}_${Math.random()
-      .toString(36)
-      .slice(2)}`;
+    const randomPassword = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     user = await User.create({
       name: name || "User",
       email,
       phone: phone || "0000000000",
       password: randomPassword,
+      celebName: celebNameFromLink || "",
       status: "pending_payment",
       paid: false,
     });
+  } else {
+    // ✅ if user exists but celebName empty, set it (optional)
+    if (
+      (!user.celebName || user.celebName.trim() === "") &&
+      celebNameFromLink
+    ) {
+      user.celebName = celebNameFromLink;
+      await user.save();
+    }
   }
 
- const token = generateToken(res, user._id); 
+  const token = generateToken(res, user._id);
 
   res.status(200).json({
     _id: user._id,
     name: user.name,
     email: user.email,
     phone: user.phone,
+    celebName: user.celebName,
     cardId: user.cardId,
     packageType: user.packageType,
     amount: user.amount,
@@ -219,11 +241,4 @@ const uploadReceipt = asyncHandler(async (req, res) => {
   });
 });
 
-
-export {
-  googleAuth,
-  getUserInfo,
-  updatePackage,
-  logoutUser,
-  uploadReceipt
-};
+export { googleAuth, getUserInfo, updatePackage, logoutUser, uploadReceipt };

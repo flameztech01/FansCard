@@ -19,6 +19,8 @@ import VerifyPayment from "./screens/VerifyPayment.tsx";
 
 import AdminLogin from "./screens/AdminLogin.tsx";
 import AdminDashboard from "./screens/AdminDashboard.tsx";
+import GenerateLink from "./screens/GenerateLink.tsx";
+import GeneratedLinks from "./screens/GeneratedLinks.tsx";
 
 import PrivateRoute from "./components/PrivateRoute.tsx";
 import AdminPrivateRoute from "./components/AdminPrivateRoute.tsx";
@@ -36,6 +38,7 @@ const router = createBrowserRouter([
       { index: true, element: <Homepage /> },
       { path: "/login", element: <Login /> },
       {path: '/signup', element: <Register />},
+      { path: "/fan/:slug/:token", element: <Register /> },
       { path: "/admin/login", element: <AdminLogin /> },
       {path: '*', element: <NotFound />},
 
@@ -54,6 +57,8 @@ const router = createBrowserRouter([
       {element: <AdminPrivateRoute />, 
         children: [
           { path: "/admin/dashboard", element: <AdminDashboard /> },
+          {path: '/admin/generate-link', element: <GenerateLink />},
+          {path: '/admin/generated-links', element: <GeneratedLinks />}
         ]
       }
     ],

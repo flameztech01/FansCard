@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { 
-  Menu, 
-  X, 
-  User, 
-  LogOut, 
-  Settings, 
-  Shield, 
-  Users, 
-  LayoutDashboard,
-  ChevronDown
+import {
+  Menu,
+  X,
+  User,
+  LogOut,
+  Settings,
+  Shield,
+  ChevronDown,
+  Link as LinkIcon,
+  Home as HomeIcon,
+  Link2Icon,
 } from 'lucide-react';
 import { adminLogout } from '../slices/authSlice';
 
@@ -32,17 +33,18 @@ const AdminNavbar = () => {
     setIsOpen(!isOpen);
   };
 
+  // ✅ CHANGED: nav links are now Home + Generate Link
   const navLinks = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
+    { name: 'Home', href: '/admin/dashboard', icon: HomeIcon },
+    { name: 'Generate Link', href: '/admin/generate-link', icon: LinkIcon },
+    {name: 'Generated Links', href: '/admin/generated-links', icon: Link2Icon}
   ];
 
   // Get initials for avatar fallback
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(word => word[0])
+      .map((word) => word[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
@@ -53,8 +55,8 @@ const AdminNavbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link 
-            to="/admin/dashboard" 
+          <Link
+            to="/admin/dashboard"
             className="text-2xl font-bold flex items-center space-x-2"
           >
             <Shield className="h-6 w-6 text-blue-400" />
@@ -101,25 +103,35 @@ const AdminNavbar = () => {
                       {adminInfo?.role || 'Administrator'}
                     </p>
                   </div>
-                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-4 w-4 text-gray-400 transition-transform ${
+                      showDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
                 </div>
               </button>
 
               {/* Dropdown Menu */}
               {showDropdown && (
                 <>
-                  <div 
+                  <div
                     className="fixed inset-0 z-10"
                     onClick={() => setShowDropdown(false)}
                   ></div>
                   <div className="absolute right-0 mt-2 w-64 bg-gray-800 rounded-md shadow-lg py-1 z-20 border border-gray-700">
                     {/* Admin Info */}
                     <div className="px-4 py-3 border-b border-gray-700">
-                      <p className="text-sm font-semibold text-white">{adminInfo?.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{adminInfo?.email}</p>
+                      <p className="text-sm font-semibold text-white">
+                        {adminInfo?.name}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {adminInfo?.email}
+                      </p>
                       <div className="mt-2 inline-flex items-center px-2 py-1 bg-blue-900/50 rounded-full">
                         <Shield className="h-3 w-3 text-blue-400 mr-1" />
-                        <span className="text-xs text-blue-300 capitalize">{adminInfo?.role || 'Admin'}</span>
+                        <span className="text-xs text-blue-300 capitalize">
+                          {adminInfo?.role || 'Admin'}
+                        </span>
                       </div>
                     </div>
 
@@ -183,11 +195,17 @@ const AdminNavbar = () => {
                   {adminInfo?.name ? getInitials(adminInfo.name) : 'A'}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-white">{adminInfo?.name || 'Admin User'}</p>
-                  <p className="text-xs text-gray-400 truncate">{adminInfo?.email || 'admin@example.com'}</p>
+                  <p className="text-sm font-semibold text-white">
+                    {adminInfo?.name || 'Admin User'}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {adminInfo?.email || 'admin@example.com'}
+                  </p>
                   <div className="mt-1 inline-flex items-center px-2 py-0.5 bg-blue-900/50 rounded-full">
                     <Shield className="h-3 w-3 text-blue-400 mr-1" />
-                    <span className="text-xs text-blue-300 capitalize">{adminInfo?.role || 'Admin'}</span>
+                    <span className="text-xs text-blue-300 capitalize">
+                      {adminInfo?.role || 'Admin'}
+                    </span>
                   </div>
                 </div>
               </div>

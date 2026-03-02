@@ -1,4 +1,4 @@
-// DashboardCard.tsx
+// DashboardCard.tsx (UPDATED: adds Celebrity name to the card)
 import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -10,8 +10,6 @@ import {
   Printer,
   Info,
   Shield,
-  // Calendar,
-  // Hash,
   User,
   Mail,
   Phone,
@@ -22,6 +20,7 @@ import {
   MapPin,
   Globe,
   Award,
+  Heart, // ✅ NEW
 } from "lucide-react";
 import { useGetUserInfoQuery } from "../slices/userApiSlice";
 import { toPng } from "html-to-image";
@@ -60,11 +59,9 @@ const packageDetails: Record<string, PackageDetails> = {
 };
 
 const ID_CARD_MM = { w: 85.6, h: 54 };
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const waitForFonts = async () => {
-
   if (document.fonts?.ready) await document.fonts.ready;
   else await sleep(250);
 };
@@ -97,6 +94,8 @@ const DashboardCard: React.FC = () => {
       return undefined;
     }
   }, []);
+
+  const celebName = (userInfo?.celebName || "").trim(); // ✅ NEW
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "—";
@@ -301,6 +300,13 @@ const DashboardCard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
               </h2>
+
+              {/* ✅ show celeb name here too */}
+              <p className="text-sm text-gray-600 flex items-center gap-1">
+                <Heart className="h-4 w-4 text-red-500" />
+                Fan of: <span className="font-semibold">{celebName || "—"}</span>
+              </p>
+
               <p className="text-sm text-gray-500 flex items-center gap-1">
                 <Mail className="h-4 w-4" /> {userInfo.email}
               </p>
@@ -377,6 +383,13 @@ const DashboardCard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
               </h2>
+
+              {/* ✅ show celeb name here too */}
+              <p className="text-sm text-gray-600 flex items-center gap-1">
+                <Heart className="h-4 w-4 text-red-500" />
+                Fan of: <span className="font-semibold">{celebName || "—"}</span>
+              </p>
+
               <p className="text-sm text-gray-500">{userInfo.email}</p>
             </div>
           </div>
@@ -463,6 +476,13 @@ const DashboardCard: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Welcome back, {userInfo.name?.split(" ")[0]}! 👋
                 </h2>
+
+                {/* ✅ show celeb name here too */}
+                <p className="text-sm text-gray-700 flex items-center gap-1 mt-1">
+                  <Heart className="h-4 w-4 text-red-500" />
+                  Fan of: <span className="font-semibold">{celebName || "—"}</span>
+                </p>
+
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                   <span className="flex items-center text-sm text-gray-500">
                     <Mail className="h-3 w-3 mr-1" /> {userInfo.email}
@@ -554,6 +574,8 @@ const DashboardCard: React.FC = () => {
                   <Shield className="h-5 w-5 text-white" />
                   <div>
                     <span className="text-sm font-black tracking-[0.2em]">FANCARD</span>
+
+                    {/* ✅ Tier badge */}
                     <div className="flex items-center space-x-1 mt-0.5">
                       {pkg.icon}
                       <span
@@ -566,9 +588,20 @@ const DashboardCard: React.FC = () => {
                         </span>
                       </span>
                     </div>
+
+                    {/* ✅ NEW: Celebrity line */}
+                    <div className="mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5"
+                      style={{ background: "rgba(255,255,255,0.14)" }}
+                    >
+                      <Heart className="h-3 w-3 text-red-300" />
+                      <span className="text-[7px] font-semibold tracking-wide">
+                        FAN OF: {celebName ? celebName.toUpperCase() : "—"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
+                {/* Avatar */}
                 {googlePicture ? (
                   <div
                     className="h-14 w-14 rounded-full overflow-hidden shadow-lg"
@@ -752,6 +785,13 @@ const DashboardCard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
               </h2>
+
+              {/* ✅ show celeb name here too */}
+              <p className="text-sm text-gray-600 flex items-center gap-1">
+                <Heart className="h-4 w-4 text-red-500" />
+                Fan of: <span className="font-semibold">{celebName || "—"}</span>
+              </p>
+
               <p className="text-sm text-gray-500">{userInfo.email}</p>
             </div>
           </div>
