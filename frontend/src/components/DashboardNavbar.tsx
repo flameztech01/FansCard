@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, CreditCard, Home } from 'lucide-react';
+import { Menu, X, User, LogOut,  Home } from 'lucide-react';
 
 interface UserInfo {
   name: string;
