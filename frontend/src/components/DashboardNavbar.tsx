@@ -35,8 +35,7 @@ const DashboardNavbar = () => {
 
   // Simple navigation - just home/buy cards and my cards
   const navLinks = [
-    { name: 'Buy Cards', href: '/dashboard', icon: Home },
-    { name: 'My Cards', href: '/dashboard/cards', icon: CreditCard },
+    { name: 'Home', href: '/dashboard', icon: Home },
   ];
 
   const isActive = (path: string) => location.pathname === path;

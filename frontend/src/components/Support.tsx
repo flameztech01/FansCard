@@ -90,9 +90,9 @@ const Support = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Contact Info Cards */}
+          {/* Contact Info Cards - Now with placeholder content */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Info Cards */}
+            {/* Info Cards - Removed actual contact information */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
               <div className="space-y-4">
@@ -102,9 +102,7 @@ const Support = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Email</p>
-                    <a href="mailto:support@fancardstore.com" className="text-gray-900 font-medium hover:text-blue-600">
-                      support@fancardstore.com
-                    </a>
+                    <p className="text-gray-900 font-medium">Contact us via form</p>
                   </div>
                 </div>
                 
@@ -114,9 +112,7 @@ const Support = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Phone</p>
-                    <a href="tel:+18001234567" className="text-gray-900 font-medium hover:text-blue-600">
-                      1-800-FAN-CARD
-                    </a>
+                    <p className="text-gray-900 font-medium">Available upon request</p>
                   </div>
                 </div>
                 
@@ -126,7 +122,7 @@ const Support = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Office</p>
-                    <p className="text-gray-900 font-medium">123 Fan Street, Stadium District</p>
+                    <p className="text-gray-900 font-medium">Virtual support team</p>
                   </div>
                 </div>
                 
@@ -172,7 +168,7 @@ const Support = () => {
               {formStatus === 'error' && (
                 <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
                   <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
-                  <p className="text-red-700">Oops! Something went wrong. Please try again or email us directly.</p>
+                  <p className="text-red-700">Oops! Something went wrong. Please try again or contact us directly.</p>
                 </div>
               )}
 

@@ -16,6 +16,7 @@ import Dashboard from "./screens/Dashboard.tsx";
 import DashboardPackages from "./screens/DashboardPackages.tsx";
 import DashboardPayment from "./screens/DashboardPayment.tsx";
 import VerifyPayment from "./screens/VerifyPayment.tsx";
+import Profile from "./screens/Profile.tsx";
 
 import AdminLogin from "./screens/AdminLogin.tsx";
 import AdminDashboard from "./screens/AdminDashboard.tsx";
@@ -27,6 +28,7 @@ import PrivateRoute from "./components/PrivateRoute.tsx";
 import AdminPrivateRoute from "./components/AdminPrivateRoute.tsx";
 
 import NotFound from "./components/NotFound.tsx";
+import DashboardSupport from "./components/DashboardSupport.tsx";
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
 console.log("GOOGLE CLIENT ID IN APP:", JSON.stringify(clientId));
@@ -42,6 +44,8 @@ const router = createBrowserRouter([
       { path: "/fan/:slug/:token", element: <Register /> },
       { path: "/admin/login", element: <AdminLogin /> },
       {path: '*', element: <NotFound />},
+      {path: '/support', element: <DashboardSupport />},
+      {path: '/dashboard/profile', element: <Profile />},
 
       {
         element: <PrivateRoute />,
