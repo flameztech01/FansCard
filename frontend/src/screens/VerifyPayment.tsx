@@ -39,13 +39,18 @@ const VerifyPayment: React.FC = () => {
   const amount = location.state?.amount as number | undefined;
   const transactionHash = location.state?.transactionHash as string | undefined;
 
+  // ✅ NEW: wallet + network passed from payment page (optional but nice)
+  const walletAddress =
+    (location.state?.walletAddress as string | undefined) ||
+    "bc1qpz0zk8jv4jxkynpgmnmh3qwdf9gfpydzhzfx9h";
+  const networkLabel = "Bitcoin (BTC) Network";
+
   // user info (optional for extra checks)
   const { data: userInfo, isLoading: userLoading, refetch } =
     useGetUserInfoQuery({});
 
   // ✅ Upload receipt mutation (FormData)
-  const [uploadReceipt, { isLoading: isUploading }] =
-    useUploadReceiptMutation();
+  const [uploadReceipt, { isLoading: isUploading }] = useUploadReceiptMutation();
 
   // redirect if page opened directly
   useEffect(() => {
@@ -115,18 +120,16 @@ const VerifyPayment: React.FC = () => {
     try {
       setUploadError(null);
 
-      // ✅ Cloudinary upload is done by backend route via multer-storage-cloudinary
-      // Send FormData with key "receipt" (matches upload.single("receipt"))
       const formData = new FormData();
       formData.append("receipt", selectedFile);
 
-      // optional: store paymentReference (tx hash) if your uploadReceipt controller saves it
+      // ✅ store TXID if you want
       if (transactionHash) formData.append("paymentReference", transactionHash);
 
-      // ✅ This should:
-      // - save receiptUrl to user.receiptUrl
-      // - set status = "pending_verification"
-      // - keep paid = false
+      // ✅ store network & wallet used (if your backend accepts these fields)
+      formData.append("paymentNetwork", "bitcoin");
+      formData.append("walletAddress", walletAddress);
+
       await uploadReceipt(formData).unwrap();
 
       setUploadSuccess(true);
@@ -235,15 +238,17 @@ const VerifyPayment: React.FC = () => {
                   {packageData.name}
                 </span>
               </div>
+
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Amount:</span>
                 <span className="font-medium text-gray-900">
                   ${amount.toLocaleString()}
                 </span>
               </div>
+
               {transactionHash && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Transaction Hash:</span>
+                  <span className="text-gray-600">Transaction Hash (TXID):</span>
                   <span className="font-medium text-gray-900 font-mono text-xs">
                     {transactionHash.slice(0, 10)}...{transactionHash.slice(-8)}
                   </span>
@@ -252,8 +257,13 @@ const VerifyPayment: React.FC = () => {
 
               <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
                 <span className="text-gray-600">Network:</span>
-                <span className="font-medium text-gray-900">
-                  BNB Smart Chain (BEP-20)
+                <span className="font-medium text-gray-900">{networkLabel}</span>
+              </div>
+
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Wallet Address:</span>
+                <span className="font-medium text-gray-900 font-mono text-xs">
+                  {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
                 </span>
               </div>
 
@@ -359,7 +369,8 @@ const VerifyPayment: React.FC = () => {
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
                     1
                   </span>
-                  Upload a clear screenshot/photo of your BNB Smart Chain (BEP-20) payment confirmation
+                  Upload a clear screenshot/photo of your <b>Bitcoin (BTC)</b>{" "}
+                  payment confirmation
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
@@ -371,7 +382,7 @@ const VerifyPayment: React.FC = () => {
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
                     3
                   </span>
-                  The transaction hash should be clearly visible in the receipt
+                  The transaction hash (TXID) should be clearly visible in the receipt
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
@@ -408,7 +419,7 @@ const VerifyPayment: React.FC = () => {
 
             <p className="text-xs text-gray-400 text-center mt-4">
               By submitting, you confirm that this payment was made to the
-              provided BNB Smart Chain (BEP-20) wallet address.
+              provided Bitcoin (BTC) wallet address.
             </p>
           </div>
         </div>

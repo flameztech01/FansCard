@@ -283,7 +283,7 @@ const AdminDashboardDetail = () => {
                       {getPackageBadge(user.packageType)}
                     </td>
                     <td className="px-6 py-4">
-                      {user.amount ? `₦${user.amount.toLocaleString()}` : '-'}
+                      {user.amount ? `$${user.amount.toLocaleString()}` : '-'}
                     </td>
                     <td className="px-6 py-4">
                       {getStatusBadge(user.status)}
@@ -403,7 +403,7 @@ const AdminDashboardDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Amount</p>
-                    <p className="font-medium">₦{selectedUser.amount?.toLocaleString() || '0'}</p>
+                    <p className="font-medium">${selectedUser.amount?.toLocaleString() || '0'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Card ID</p>

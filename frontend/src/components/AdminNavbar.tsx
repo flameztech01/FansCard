@@ -12,6 +12,7 @@ import {
   Link as LinkIcon,
   Home as HomeIcon,
   Link2Icon,
+  TrendingUp
 } from 'lucide-react';
 import { adminLogout } from '../slices/authSlice';
 
@@ -37,7 +38,8 @@ const AdminNavbar = () => {
   const navLinks = [
     { name: 'Home', href: '/admin/dashboard', icon: HomeIcon },
     { name: 'Generate Link', href: '/admin/generate-link', icon: LinkIcon },
-    {name: 'Generated Links', href: '/admin/generated-links', icon: Link2Icon}
+    {name: 'Generated Links', href: '/admin/generated-links', icon: Link2Icon},
+    {name: 'Statistics', href: '/admin/stats', icon: TrendingUp}
   ];
 
   // Get initials for avatar fallback

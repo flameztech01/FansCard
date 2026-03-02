@@ -25,7 +25,9 @@ const Register: React.FC = () => {
 
   const [login, { isLoading }] = useLoginMutation();
   const [error, setError] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
+
+  // ✅ default US country code placeholder/value
+  const [phone, setPhone] = useState("+1 ");
 
   // ✅ If user is already logged in, go dashboard
   useEffect(() => {
@@ -43,8 +45,9 @@ const Register: React.FC = () => {
         return;
       }
 
-      // ✅ Validate phone number
-      if (!phone || phone.trim() === "") {
+      // ✅ Validate phone number (must be more than just "+1")
+      const cleanPhone = phone.trim();
+      if (!cleanPhone || cleanPhone === "+1" || cleanPhone === "+1 ") {
         setError("Please enter your phone number");
         return;
       }
@@ -55,7 +58,7 @@ const Register: React.FC = () => {
       // ✅ Call backend login/register (SEND token as celebToken)
       const response = await login({
         token: credentialResponse.credential,
-        phone: phone.trim(),
+        phone: cleanPhone,
         celebToken: token || undefined, // ✅ from URL path
       }).unwrap();
 
@@ -142,12 +145,13 @@ const Register: React.FC = () => {
               id="phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+234 801 234 5678"
+              // ✅ default US style placeholder
+              placeholder="+1 (555) 123-4567"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
             <p className="text-xs text-gray-500">
-              Include your country code (e.g., +234 for Nigeria, +1 for USA)
+              Start with <span className="font-semibold">+1</span> (US/Canada) or change to your country code (e.g., +234 for Nigeria).
             </p>
           </div>
 

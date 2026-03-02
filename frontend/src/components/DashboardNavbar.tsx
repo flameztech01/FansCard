@@ -26,7 +26,7 @@ const DashboardNavbar = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userInfo');
-    navigate('/');
+    navigate('/login');
   };
 
   const toggleMenu = () => {

@@ -21,6 +21,7 @@ import AdminLogin from "./screens/AdminLogin.tsx";
 import AdminDashboard from "./screens/AdminDashboard.tsx";
 import GenerateLink from "./screens/GenerateLink.tsx";
 import GeneratedLinks from "./screens/GeneratedLinks.tsx";
+import AdminDashboardStats from "./screens/AdminDashboardStats.tsx";
 
 import PrivateRoute from "./components/PrivateRoute.tsx";
 import AdminPrivateRoute from "./components/AdminPrivateRoute.tsx";
@@ -58,7 +59,8 @@ const router = createBrowserRouter([
         children: [
           { path: "/admin/dashboard", element: <AdminDashboard /> },
           {path: '/admin/generate-link', element: <GenerateLink />},
-          {path: '/admin/generated-links', element: <GeneratedLinks />}
+          {path: '/admin/generated-links', element: <GeneratedLinks />},
+          {path: '/admin/stats', element: <AdminDashboardStats />}
         ]
       }
     ],
