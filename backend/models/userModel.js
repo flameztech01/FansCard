@@ -1,6 +1,58 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+const userPaymentMethodSchema = new mongoose.Schema(
+  {
+    methodId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    type: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
+    },
+    label: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    details: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+  },
+  { _id: false }
+);
+
+const selectedPaymentMethodSchema = new mongoose.Schema(
+  {
+    methodId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    type: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
+    },
+    label: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    details: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -29,9 +81,28 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
-     celebName: { type: String, trim: true, default: "" },
+    celebName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
-    // Each user gets one FanCard
+    celebLinkId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CelebLink",
+      default: null,
+    },
+
+    paymentMethods: {
+      type: [userPaymentMethodSchema],
+      default: [],
+    },
+
+    selectedPaymentMethod: {
+      type: selectedPaymentMethodSchema,
+      default: null,
+    },
+
     cardId: {
       type: String,
       unique: true,
@@ -45,7 +116,6 @@ const userSchema = new mongoose.Schema(
 
     amount: Number,
 
-    // Payment
     paymentReference: {
       type: String,
       unique: true,
@@ -61,7 +131,6 @@ const userSchema = new mongoose.Schema(
 
     paymentDate: Date,
 
-    // Admin Status
     status: {
       type: String,
       enum: [
@@ -93,8 +162,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-
-// 🔐 Hash password before saving (NO next)
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
@@ -102,8 +169,6 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-
-// 🔑 Compare password for login
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };

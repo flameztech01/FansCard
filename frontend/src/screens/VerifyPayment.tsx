@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -24,6 +24,23 @@ interface PackageInfo {
   features: string[];
 }
 
+interface PaymentMethod {
+  methodId: string;
+  type: string;
+  label: string;
+  details: Record<string, any>;
+}
+
+const FALLBACK_PAYMENT_METHOD: PaymentMethod = {
+  methodId: "fallback_btc_1",
+  type: "bitcoin",
+  label: "Bitcoin Payment",
+  details: {
+    walletAddress: "bc1qpz0zk8jv4jxkynpgmnmh3qwdf9gfpydzhzfx9h",
+    network: "Bitcoin (BTC) Network",
+  },
+};
+
 const VerifyPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,38 +51,145 @@ const VerifyPayment: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  // from navigation state
   const packageData = location.state?.package as PackageInfo | undefined;
   const amount = location.state?.amount as number | undefined;
   const transactionHash = location.state?.transactionHash as string | undefined;
 
-  // ✅ NEW: wallet + network passed from payment page (optional but nice)
-  const walletAddress =
-    (location.state?.walletAddress as string | undefined) ||
-    "bc1qpz0zk8jv4jxkynpgmnmh3qwdf9gfpydzhzfx9h";
-  const networkLabel = "Bitcoin (BTC) Network";
+  const passedPaymentMethod =
+    (location.state?.paymentMethod as PaymentMethod | undefined) ||
+    FALLBACK_PAYMENT_METHOD;
 
-  // user info (optional for extra checks)
+  const passedPaymentType =
+    (location.state?.paymentType as string | undefined) ||
+    passedPaymentMethod.type ||
+    "bitcoin";
+
+  const passedPaymentLabel =
+    (location.state?.paymentLabel as string | undefined) ||
+    passedPaymentMethod.label ||
+    "Bitcoin Payment";
+
+  const passedPaymentDetails =
+    (location.state?.paymentDetails as Record<string, any> | undefined) ||
+    passedPaymentMethod.details ||
+    FALLBACK_PAYMENT_METHOD.details;
+
+  const passedNetwork =
+    (location.state?.network as string | undefined) ||
+    passedPaymentDetails.network ||
+    "Bitcoin (BTC) Network";
+
+  const destinationValue =
+    (location.state?.destinationValue as string | undefined) ||
+    passedPaymentDetails.walletAddress ||
+    passedPaymentDetails.accountNumber ||
+    passedPaymentDetails["Account Number"] ||
+    passedPaymentDetails.email ||
+    "";
+
   const { data: userInfo, isLoading: userLoading, refetch } =
     useGetUserInfoQuery({});
 
-  // ✅ Upload receipt mutation (FormData)
   const [uploadReceipt, { isLoading: isUploading }] = useUploadReceiptMutation();
 
-  // redirect if page opened directly
   useEffect(() => {
     if (!packageData || !amount) navigate("/packages");
   }, [packageData, amount, navigate]);
 
-  // cleanup preview url
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
 
+  const paymentType = String(passedPaymentType || "").toLowerCase();
+  const paymentLabel = passedPaymentLabel;
+  const paymentDetails = passedPaymentDetails;
+  const networkLabel = passedNetwork;
+
+  const paymentPrimaryLabel = useMemo(() => {
+    if (
+      paymentType.includes("btc") ||
+      paymentType.includes("bitcoin") ||
+      paymentDetails.walletAddress
+    ) {
+      return "Wallet Address";
+    }
+
+    if (paymentType.includes("bank")) {
+      return "Account Number";
+    }
+
+    if (paymentType.includes("zelle")) {
+      return "Zelle Account";
+    }
+
+    if (paymentType.includes("paypal")) {
+      return "PayPal Account";
+    }
+
+    return "Payment Destination";
+  }, [paymentType, paymentDetails]);
+
+  const importantInstructions = useMemo(() => {
+    if (paymentType.includes("bank")) {
+      return [
+        `Upload a clear screenshot/photo of your ${paymentLabel} transfer receipt`,
+        `Make sure the amount is visible: $${amount?.toLocaleString()}`,
+        "The transfer reference, session ID, or narration should be visible if possible",
+        "After upload your status becomes Pending Verification",
+      ];
+    }
+
+    if (paymentType.includes("zelle")) {
+      return [
+        `Upload a clear screenshot/photo of your ${paymentLabel} payment confirmation`,
+        `Make sure the amount is visible: $${amount?.toLocaleString()}`,
+        "The recipient details and payment reference should be visible if possible",
+        "After upload your status becomes Pending Verification",
+      ];
+    }
+
+    if (paymentType.includes("paypal")) {
+      return [
+        `Upload a clear screenshot/photo of your ${paymentLabel} payment confirmation`,
+        `Make sure the amount is visible: $${amount?.toLocaleString()}`,
+        "The PayPal recipient and transaction reference should be visible if possible",
+        "After upload your status becomes Pending Verification",
+      ];
+    }
+
+    return [
+      `Upload a clear screenshot/photo of your ${paymentLabel} payment confirmation`,
+      `Make sure the amount is visible: $${amount?.toLocaleString()}`,
+      "The transaction reference or receipt details should be visible if possible",
+      "After upload your status becomes Pending Verification",
+    ];
+  }, [paymentType, paymentLabel, amount]);
+
+  const verificationLabel = useMemo(() => {
+    if (paymentType.includes("btc") || paymentType.includes("bitcoin")) {
+      return "Transaction Hash (TXID)";
+    }
+
+    if (paymentType.includes("bank")) {
+      return "Transaction Reference";
+    }
+
+    if (paymentType.includes("paypal")) {
+      return "PayPal Transaction ID";
+    }
+
+    if (paymentType.includes("zelle")) {
+      return "Payment Reference";
+    }
+
+    return "Payment Reference";
+  }, [paymentType]);
+
   const handleFileSelect = (file: File) => {
     const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+
     if (!allowedTypes.includes(file.type)) {
       setUploadError("Please upload an image (JPEG, PNG, WEBP) file");
       return;
@@ -78,6 +202,10 @@ const VerifyPayment: React.FC = () => {
 
     setSelectedFile(file);
     setUploadError(null);
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
 
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
@@ -106,6 +234,10 @@ const VerifyPayment: React.FC = () => {
   };
 
   const handleRemoveFile = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     setSelectedFile(null);
     setPreviewUrl(null);
     setUploadError(null);
@@ -123,12 +255,16 @@ const VerifyPayment: React.FC = () => {
       const formData = new FormData();
       formData.append("receipt", selectedFile);
 
-      // ✅ store TXID if you want
-      if (transactionHash) formData.append("paymentReference", transactionHash);
+      if (transactionHash?.trim()) {
+        formData.append("paymentReference", transactionHash.trim());
+      }
 
-      // ✅ store network & wallet used (if your backend accepts these fields)
-      formData.append("paymentNetwork", "bitcoin");
-      formData.append("walletAddress", walletAddress);
+      formData.append("paymentMethodId", passedPaymentMethod.methodId || "");
+      formData.append("paymentMethodType", passedPaymentMethod.type || "");
+      formData.append("paymentMethodLabel", passedPaymentMethod.label || "");
+      formData.append("paymentNetwork", networkLabel || "");
+      formData.append("paymentDestination", String(destinationValue || ""));
+      formData.append("paymentDetails", JSON.stringify(paymentDetails || {}));
 
       await uploadReceipt(formData).unwrap();
 
@@ -146,7 +282,6 @@ const VerifyPayment: React.FC = () => {
 
   if (!packageData || !amount) return null;
 
-  // block if already approved
   if (userInfo?.status === "approved" && userInfo?.cardId) {
     navigate("/dashboard");
     return null;
@@ -166,7 +301,7 @@ const VerifyPayment: React.FC = () => {
             </h2>
 
             <p className="text-gray-600 mb-8">
-              Your payment receipt has been submitted for verification. We'll
+              Your payment receipt has been submitted for verification. We&apos;ll
               review it and update your status once confirmed.
             </p>
 
@@ -181,7 +316,7 @@ const VerifyPayment: React.FC = () => {
                   <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside">
                     <li>Admin will verify your payment</li>
                     <li>Once approved, your card will be issued</li>
-                    <li>You'll see your cardId after approval</li>
+                    <li>You&apos;ll see your cardId after approval</li>
                   </ul>
                 </div>
               </div>
@@ -199,13 +334,40 @@ const VerifyPayment: React.FC = () => {
     );
   }
 
+  const extraDetails = Object.entries(paymentDetails || {}).filter(([key, value]) => {
+    if (!value) return false;
+
+    const normalized = key.toLowerCase().replace(/\s+/g, "");
+    const hidden = [
+      "walletaddress",
+      "accountnumber",
+      "email",
+      "network",
+    ];
+
+    return !hidden.includes(normalized);
+  });
+
+  const formatKey = (key: string) => {
+    return key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/[_-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Back Button */}
         <button
           onClick={() =>
-            navigate("/payment", { state: { package: packageData, amount } })
+            navigate("/payment", {
+              state: {
+                package: packageData,
+                amount,
+              },
+            })
           }
           className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
         >
@@ -213,9 +375,7 @@ const VerifyPayment: React.FC = () => {
           Back to Payment
         </button>
 
-        {/* Main Upload Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          {/* Header */}
           <div className={`bg-gradient-to-r ${packageData.color} p-8 text-white`}>
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-3xl font-bold">Verify Payment</h1>
@@ -226,11 +386,11 @@ const VerifyPayment: React.FC = () => {
             </p>
           </div>
 
-          {/* Payment Summary */}
           <div className="p-8 border-b border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Payment Details
             </h3>
+
             <div className="bg-gray-50 rounded-xl p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Package:</span>
@@ -246,26 +406,48 @@ const VerifyPayment: React.FC = () => {
                 </span>
               </div>
 
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Payment Method:</span>
+                <span className="font-medium text-gray-900">
+                  {paymentLabel}
+                </span>
+              </div>
+
               {transactionHash && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Transaction Hash (TXID):</span>
+                  <span className="text-gray-600">{verificationLabel}:</span>
                   <span className="font-medium text-gray-900 font-mono text-xs">
-                    {transactionHash.slice(0, 10)}...{transactionHash.slice(-8)}
+                    {transactionHash.length > 20
+                      ? `${transactionHash.slice(0, 10)}...${transactionHash.slice(-8)}`
+                      : transactionHash}
                   </span>
                 </div>
               )}
 
               <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-                <span className="text-gray-600">Network:</span>
+                <span className="text-gray-600">Network / Channel:</span>
                 <span className="font-medium text-gray-900">{networkLabel}</span>
               </div>
 
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Wallet Address:</span>
+                <span className="text-gray-600">{paymentPrimaryLabel}:</span>
                 <span className="font-medium text-gray-900 font-mono text-xs">
-                  {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
+                  {String(destinationValue || "N/A").length > 24
+                    ? `${String(destinationValue).slice(0, 10)}...${String(
+                        destinationValue
+                      ).slice(-8)}`
+                    : String(destinationValue || "N/A")}
                 </span>
               </div>
+
+              {extraDetails.map(([key, value]) => (
+                <div className="flex justify-between text-sm" key={key}>
+                  <span className="text-gray-600">{formatKey(key)}:</span>
+                  <span className="font-medium text-gray-900 text-right break-all">
+                    {String(value)}
+                  </span>
+                </div>
+              ))}
 
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Status After Upload:</span>
@@ -286,7 +468,6 @@ const VerifyPayment: React.FC = () => {
             ) : null}
           </div>
 
-          {/* Upload Area */}
           <div className="p-8">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Upload Payment Receipt
@@ -350,7 +531,6 @@ const VerifyPayment: React.FC = () => {
               )}
             </div>
 
-            {/* Error Message */}
             {uploadError && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
                 <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -358,43 +538,24 @@ const VerifyPayment: React.FC = () => {
               </div>
             )}
 
-            {/* Instructions */}
             <div className="mt-6 bg-blue-50 rounded-xl p-4">
               <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
                 <Info className="h-4 w-4 mr-2" />
                 Important Instructions
               </h4>
+
               <ul className="space-y-2 text-sm text-blue-700">
-                <li className="flex items-start">
-                  <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                    1
-                  </span>
-                  Upload a clear screenshot/photo of your <b>Bitcoin (BTC)</b>{" "}
-                  payment confirmation
-                </li>
-                <li className="flex items-start">
-                  <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                    2
-                  </span>
-                  Make sure the amount is visible: ${amount.toLocaleString()}
-                </li>
-                <li className="flex items-start">
-                  <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                    3
-                  </span>
-                  The transaction hash (TXID) should be clearly visible in the receipt
-                </li>
-                <li className="flex items-start">
-                  <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                    4
-                  </span>
-                  After upload your status becomes{" "}
-                  <span className="font-semibold">Pending Verification</span>
-                </li>
+                {importantInstructions.map((instruction, index) => (
+                  <li className="flex items-start" key={instruction}>
+                    <span className="bg-blue-200 text-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
+                      {index + 1}
+                    </span>
+                    {instruction}
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Submit Button */}
             <button
               onClick={handleSubmit}
               disabled={!selectedFile || isUploading}
@@ -418,8 +579,7 @@ const VerifyPayment: React.FC = () => {
             </button>
 
             <p className="text-xs text-gray-400 text-center mt-4">
-              By submitting, you confirm that this payment was made to the
-              provided Bitcoin (BTC) wallet address.
+              By submitting, you confirm that this payment was made using the selected payment method shown above.
             </p>
           </div>
         </div>

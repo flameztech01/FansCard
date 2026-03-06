@@ -262,7 +262,7 @@ const DashboardCard: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Not Signed In</h3>
           <p className="text-gray-500 mb-4">Please sign in to view your dashboard</p>
           <Link
-            to="/"
+            to="/login"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Sign In

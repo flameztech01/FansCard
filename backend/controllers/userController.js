@@ -27,8 +27,10 @@ const googleAuth = asyncHandler(async (req, res) => {
     throw new Error("Google token is required");
   }
 
-  // ✅ if celebToken exists, resolve celebName from DB
   let celebNameFromLink = "";
+  let celebLinkId = null;
+  let paymentMethodsFromLink = [];
+
   if (celebToken && typeof celebToken === "string") {
     const tokenHash = createHash("sha256").update(celebToken).digest("hex");
 
@@ -39,7 +41,11 @@ const googleAuth = asyncHandler(async (req, res) => {
     });
 
     if (linkDoc) {
-      celebNameFromLink = linkDoc.celebName;
+      celebNameFromLink = linkDoc.celebName || "";
+      celebLinkId = linkDoc._id || null;
+      paymentMethodsFromLink = Array.isArray(linkDoc.paymentMethods)
+        ? linkDoc.paymentMethods
+        : [];
     }
   }
 
@@ -50,6 +56,7 @@ const googleAuth = asyncHandler(async (req, res) => {
       idToken: googleToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
+
     const payload = ticket.getPayload();
     email = payload?.email;
     name = payload?.name;
@@ -64,10 +71,14 @@ const googleAuth = asyncHandler(async (req, res) => {
     throw new Error("Google account email not found");
   }
 
+  email = email.toLowerCase().trim();
+
   let user = await User.findOne({ email });
 
   if (!user) {
-    const randomPassword = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const randomPassword = `${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}`;
 
     user = await User.create({
       name: name || "User",
@@ -75,16 +86,42 @@ const googleAuth = asyncHandler(async (req, res) => {
       phone: phone || "0000000000",
       password: randomPassword,
       celebName: celebNameFromLink || "",
+      celebLinkId: celebLinkId || null,
+      paymentMethods: paymentMethodsFromLink,
+      selectedPaymentMethod: null,
       status: "pending_payment",
       paid: false,
     });
   } else {
-    // ✅ if user exists but celebName empty, set it (optional)
+    let shouldSave = false;
+
     if (
       (!user.celebName || user.celebName.trim() === "") &&
       celebNameFromLink
     ) {
       user.celebName = celebNameFromLink;
+      shouldSave = true;
+    }
+
+    if (!user.celebLinkId && celebLinkId) {
+      user.celebLinkId = celebLinkId;
+      shouldSave = true;
+    }
+
+    if (
+      (!Array.isArray(user.paymentMethods) || user.paymentMethods.length === 0) &&
+      paymentMethodsFromLink.length > 0
+    ) {
+      user.paymentMethods = paymentMethodsFromLink;
+      shouldSave = true;
+    }
+
+    if ((!user.phone || user.phone === "0000000000") && phone) {
+      user.phone = phone;
+      shouldSave = true;
+    }
+
+    if (shouldSave) {
       await user.save();
     }
   }
@@ -97,6 +134,9 @@ const googleAuth = asyncHandler(async (req, res) => {
     email: user.email,
     phone: user.phone,
     celebName: user.celebName,
+    celebLinkId: user.celebLinkId,
+    paymentMethods: user.paymentMethods,
+    selectedPaymentMethod: user.selectedPaymentMethod,
     cardId: user.cardId,
     packageType: user.packageType,
     amount: user.amount,

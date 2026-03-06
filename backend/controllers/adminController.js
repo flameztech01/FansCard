@@ -267,7 +267,7 @@ const updateUserStatusAdmin = asyncHandler(async (req, res) => {
 });
 
 const generateCelebLink = asyncHandler(async (req, res) => {
-  const { celebName, expiresInDays } = req.body;
+  const { celebName, expiresInDays, paymentMethods } = req.body;
 
   if (!celebName || typeof celebName !== "string") {
     res.status(400);
@@ -280,17 +280,54 @@ const generateCelebLink = asyncHandler(async (req, res) => {
     throw new Error("celebName is too short");
   }
 
-  // ✅ slug for pretty URL (davido, burna-boy, etc.)
+  if (!Array.isArray(paymentMethods) || paymentMethods.length === 0) {
+    res.status(400);
+    throw new Error("At least one payment method is required");
+  }
+
+  const cleanedPaymentMethods = paymentMethods.map((method, index) => {
+    if (!method || typeof method !== "object") {
+      res.status(400);
+      throw new Error(`paymentMethods[${index}] must be an object`);
+    }
+
+    const methodId = String(method.methodId || "").trim();
+    const type = String(method.type || "").trim().toLowerCase();
+    const label = String(method.label || "").trim();
+
+    if (!methodId) {
+      res.status(400);
+      throw new Error(`paymentMethods[${index}].methodId is required`);
+    }
+
+    if (!type) {
+      res.status(400);
+      throw new Error(`paymentMethods[${index}].type is required`);
+    }
+
+    if (!label) {
+      res.status(400);
+      throw new Error(`paymentMethods[${index}].label is required`);
+    }
+
+    return {
+      methodId,
+      type,
+      label,
+      details:
+        method.details && typeof method.details === "object"
+          ? method.details
+          : {},
+    };
+  });
+
   const slug = cleanName
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "") // remove special chars
+    .replace(/[^a-z0-9\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "-"); // spaces -> hyphen
+    .replace(/\s+/g, "-");
 
-  // generate raw token (secure part)
   const rawToken = crypto.randomBytes(24).toString("hex");
-
-  // hash token for DB storage
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   let expiresAt = null;
@@ -302,15 +339,15 @@ const generateCelebLink = asyncHandler(async (req, res) => {
 
   const doc = await CelebLink.create({
     celebName: cleanName,
+    slug,
     tokenHash,
+    paymentMethods: cleanedPaymentMethods,
     createdBy: req.user?._id || null,
     expiresAt,
     isActive: true,
   });
 
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3030";
-
-  // ✅ NEW FORMAT: /fan/:slug/:token
   const signupLink = `${frontendUrl}/fan/${slug}/${rawToken}`;
 
   res.status(201).json({

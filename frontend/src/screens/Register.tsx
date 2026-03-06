@@ -1,5 +1,4 @@
-// Register.tsx (UPDATED for /fan/:slug/:token)
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { GoogleLogin } from "@react-oauth/google";
@@ -18,23 +17,35 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // ✅ NEW: token comes from /fan/:slug/:token
-  const { token } = useParams<{ slug: string; token: string }>();
-
+  const { slug, token } = useParams<{ slug: string; token: string }>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
   const [login, { isLoading }] = useLoginMutation();
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ default US country code placeholder/value
   const [phone, setPhone] = useState("+1 ");
 
-  // ✅ If user is already logged in, go dashboard
+  const hasFanLink = useMemo(() => {
+    return Boolean(token && token.trim());
+  }, [token]);
+
   useEffect(() => {
     if (userInfo) {
       navigate("/dashboard", { replace: true });
     }
   }, [userInfo, navigate]);
+
+  const normalizePhone = (value: string) => {
+    return value.replace(/\s+/g, " ").trim();
+  };
+
+  const isPhoneValid = (value: string) => {
+    const cleaned = normalizePhone(value);
+    if (!cleaned) return false;
+    if (!cleaned.startsWith("+")) return false;
+
+    const digits = cleaned.replace(/\D/g, "");
+    return digits.length >= 7;
+  };
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
@@ -45,24 +56,27 @@ const Register: React.FC = () => {
         return;
       }
 
-      // ✅ Validate phone number (must be more than just "+1")
-      const cleanPhone = phone.trim();
-      if (!cleanPhone || cleanPhone === "+1" || cleanPhone === "+1 ") {
-        setError("Please enter your phone number");
+      const cleanPhone = normalizePhone(phone);
+      if (!isPhoneValid(cleanPhone)) {
+        setError("Please enter a valid phone number with country code");
         return;
       }
 
-      // ✅ Decode only to grab picture/sub (optional fields for UI)
       const decoded: any = jwtDecode(credentialResponse.credential);
 
-      // ✅ Call backend login/register (SEND token as celebToken)
-      const response = await login({
+      const payload: Record<string, any> = {
         token: credentialResponse.credential,
         phone: cleanPhone,
-        celebToken: token || undefined, // ✅ from URL path
-      }).unwrap();
+      };
 
-      // ✅ One source of truth: merge extras then store via Redux
+      // only attach celeb link data if user came through celeb link
+      if (hasFanLink) {
+        payload.celebToken = token;
+        payload.celebSlug = slug;
+      }
+
+      const response = await login(payload).unwrap();
+
       const userInfoToStore = {
         ...response,
         picture: decoded?.picture ?? response?.picture,
@@ -81,7 +95,6 @@ const Register: React.FC = () => {
     setError("Google registration failed. Please try again.");
   };
 
-  // Loading UI
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -103,7 +116,6 @@ const Register: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Header */}
         <div className="text-center">
           <Link
             to="/"
@@ -111,51 +123,54 @@ const Register: React.FC = () => {
           >
             FanCardStore
           </Link>
+
           <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
             Create Account
           </h2>
+
           <p className="text-gray-600">
             Sign up with Google to get your fan card
           </p>
 
-          {/* ✅ Optional: indicator that this is a fan link */}
-          {token && (
+          {hasFanLink && (
             <p className="mt-2 text-xs text-gray-500">
-              Fan signup link detected (token attached)
+              Fan signup link detected
+              {slug ? ` • ${slug}` : ""}
             </p>
           )}
         </div>
 
-        {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
-          {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          {/* Phone Number Field */}
           <div className="space-y-2">
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700"
+            >
               Phone Number <span className="text-red-500">*</span>
             </label>
+
             <input
               type="tel"
               id="phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              // ✅ default US style placeholder
               placeholder="+1 (555) 123-4567"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
+
             <p className="text-xs text-gray-500">
-              Start with <span className="font-semibold">+1</span> (US/Canada) or change to your country code (e.g., +234 for Nigeria).
+              Start with <span className="font-semibold">+1</span> or use your
+              own country code, like <span className="font-semibold">+44</span>.
             </p>
           </div>
 
-          {/* Info Box */}
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
             <p className="text-sm text-blue-800">
               <span className="font-semibold">Quick setup:</span> Sign up once,
@@ -164,7 +179,6 @@ const Register: React.FC = () => {
             </p>
           </div>
 
-          {/* Google Register Button */}
           <div className="flex justify-center pt-2">
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
@@ -177,45 +191,87 @@ const Register: React.FC = () => {
             />
           </div>
 
-          {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">Secure registration</span>
+              <span className="px-4 bg-white text-gray-500">
+                Secure registration
+              </span>
             </div>
           </div>
 
-          {/* Features */}
           <div className="space-y-3">
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               No password to remember
             </div>
+
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Secure Google authentication
             </div>
+
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Choose your package after signup
             </div>
+
             <div className="flex items-center text-sm text-gray-600">
-              <svg className="h-5 w-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5 text-green-500 mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
-              Pay with crypto to activate
+              Flexible payment methods supported
             </div>
           </div>
 
-          {/* Terms */}
           <p className="text-xs text-gray-400 text-center">
             By signing up, you agree to our{" "}
             <Link to="/terms" className="text-blue-600 hover:underline">
@@ -228,15 +284,21 @@ const Register: React.FC = () => {
           </p>
         </div>
 
-        {/* Footer */}
         <div className="text-center space-y-2">
           <p className="text-sm text-gray-600">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link
+              to="/login"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               Sign in here
             </Link>
           </p>
-          <Link to="/" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+
+          <Link
+            to="/"
+            className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+          >
             ← Back to Home
           </Link>
         </div>
