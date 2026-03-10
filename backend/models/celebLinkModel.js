@@ -24,7 +24,7 @@ const paymentMethodSchema = new mongoose.Schema(
       default: {},
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const celebLinkSchema = new mongoose.Schema(
@@ -33,6 +33,12 @@ const celebLinkSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+
+    celebPicture: {
+      type: String,
+      trim: true,
+      default: "",
     },
 
     slug: {
@@ -70,7 +76,7 @@ const celebLinkSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 celebLinkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

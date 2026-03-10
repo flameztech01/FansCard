@@ -28,6 +28,7 @@ const googleAuth = asyncHandler(async (req, res) => {
   }
 
   let celebNameFromLink = "";
+  let celebPictureFromLink = "";
   let celebLinkId = null;
   let paymentMethodsFromLink = [];
 
@@ -42,6 +43,7 @@ const googleAuth = asyncHandler(async (req, res) => {
 
     if (linkDoc) {
       celebNameFromLink = linkDoc.celebName || "";
+      celebPictureFromLink = linkDoc.celebPicture || "";
       celebLinkId = linkDoc._id || null;
       paymentMethodsFromLink = Array.isArray(linkDoc.paymentMethods)
         ? linkDoc.paymentMethods
@@ -73,6 +75,8 @@ const googleAuth = asyncHandler(async (req, res) => {
 
   email = email.toLowerCase().trim();
 
+  const fanProfilePicture = req.file?.path || "";
+
   let user = await User.findOne({ email });
 
   if (!user) {
@@ -86,6 +90,8 @@ const googleAuth = asyncHandler(async (req, res) => {
       phone: phone || "0000000000",
       password: randomPassword,
       celebName: celebNameFromLink || "",
+      celebPicture: celebPictureFromLink || "",
+      profilePicture: fanProfilePicture || "",
       celebLinkId: celebLinkId || null,
       paymentMethods: paymentMethodsFromLink,
       selectedPaymentMethod: null,
@@ -100,6 +106,14 @@ const googleAuth = asyncHandler(async (req, res) => {
       celebNameFromLink
     ) {
       user.celebName = celebNameFromLink;
+      shouldSave = true;
+    }
+
+    if (
+      (!user.celebPicture || user.celebPicture.trim() === "") &&
+      celebPictureFromLink
+    ) {
+      user.celebPicture = celebPictureFromLink;
       shouldSave = true;
     }
 
@@ -121,6 +135,14 @@ const googleAuth = asyncHandler(async (req, res) => {
       shouldSave = true;
     }
 
+    if (
+      (!user.profilePicture || user.profilePicture.trim() === "") &&
+      fanProfilePicture
+    ) {
+      user.profilePicture = fanProfilePicture;
+      shouldSave = true;
+    }
+
     if (shouldSave) {
       await user.save();
     }
@@ -134,6 +156,8 @@ const googleAuth = asyncHandler(async (req, res) => {
     email: user.email,
     phone: user.phone,
     celebName: user.celebName,
+    celebPicture: user.celebPicture,
+    profilePicture: user.profilePicture,
     celebLinkId: user.celebLinkId,
     paymentMethods: user.paymentMethods,
     selectedPaymentMethod: user.selectedPaymentMethod,

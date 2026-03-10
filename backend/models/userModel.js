@@ -87,6 +87,18 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    celebPicture: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    profilePicture: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     celebLinkId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CelebLink",

@@ -267,7 +267,7 @@ const updateUserStatusAdmin = asyncHandler(async (req, res) => {
 });
 
 const generateCelebLink = asyncHandler(async (req, res) => {
-  const { celebName, expiresInDays, paymentMethods } = req.body;
+  let { celebName, expiresInDays, paymentMethods } = req.body;
 
   if (!celebName || typeof celebName !== "string") {
     res.status(400);
@@ -275,9 +275,20 @@ const generateCelebLink = asyncHandler(async (req, res) => {
   }
 
   const cleanName = celebName.trim();
+
   if (cleanName.length < 2) {
     res.status(400);
     throw new Error("celebName is too short");
+  }
+
+  // FormData sends arrays/objects as strings, so parse paymentMethods if needed
+  if (typeof paymentMethods === "string") {
+    try {
+      paymentMethods = JSON.parse(paymentMethods);
+    } catch (error) {
+      res.status(400);
+      throw new Error("paymentMethods must be valid JSON");
+    }
   }
 
   if (!Array.isArray(paymentMethods) || paymentMethods.length === 0) {
@@ -331,14 +342,22 @@ const generateCelebLink = asyncHandler(async (req, res) => {
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   let expiresAt = null;
-  if (expiresInDays && Number(expiresInDays) > 0) {
-    expiresAt = new Date(
-      Date.now() + Number(expiresInDays) * 24 * 60 * 60 * 1000
-    );
+  if (expiresInDays !== undefined && expiresInDays !== null && expiresInDays !== "") {
+    const days = Number(expiresInDays);
+
+    if (Number.isNaN(days) || days <= 0) {
+      res.status(400);
+      throw new Error("expiresInDays must be a valid number greater than 0");
+    }
+
+    expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   }
+
+  const celebPicture = req.file?.path || "";
 
   const doc = await CelebLink.create({
     celebName: cleanName,
+    celebPicture,
     slug,
     tokenHash,
     paymentMethods: cleanedPaymentMethods,
@@ -347,14 +366,12 @@ const generateCelebLink = asyncHandler(async (req, res) => {
     isActive: true,
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3030";
-  const signupLink = `${frontendUrl}/fan/${slug}/${rawToken}`;
-
   res.status(201).json({
-    message: "Celeb signup link created",
+    message: "Celebrity link generated successfully",
     celebName: doc.celebName,
-    signupLink,
+    celebPicture: doc.celebPicture,
     expiresAt: doc.expiresAt,
+    signupLink: `${process.env.CLIENT_URL}/register/${doc.slug}/${rawToken}`,
   });
 });
 

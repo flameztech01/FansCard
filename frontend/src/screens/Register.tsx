@@ -23,6 +23,8 @@ const Register: React.FC = () => {
   const [login, { isLoading }] = useLoginMutation();
   const [error, setError] = useState<string | null>(null);
   const [phone, setPhone] = useState("+1 ");
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
 
   const hasFanLink = useMemo(() => {
     return Boolean(token && token.trim());
@@ -33,6 +35,20 @@ const Register: React.FC = () => {
       navigate("/dashboard", { replace: true });
     }
   }, [userInfo, navigate]);
+
+  useEffect(() => {
+    if (!profilePicture) {
+      setPreviewUrl("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(profilePicture);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [profilePicture]);
 
   const normalizePhone = (value: string) => {
     return value.replace(/\s+/g, " ").trim();
@@ -62,20 +78,24 @@ const Register: React.FC = () => {
         return;
       }
 
-      const decoded: any = jwtDecode(credentialResponse.credential);
-
-      const payload: Record<string, any> = {
-        token: credentialResponse.credential,
-        phone: cleanPhone,
-      };
-
-      // only attach celeb link data if user came through celeb link
-      if (hasFanLink) {
-        payload.celebToken = token;
-        payload.celebSlug = slug;
+      if (!profilePicture) {
+        setError("Please upload your profile picture");
+        return;
       }
 
-      const response = await login(payload).unwrap();
+      const decoded: any = jwtDecode(credentialResponse.credential);
+
+      const formData = new FormData();
+      formData.append("token", credentialResponse.credential);
+      formData.append("phone", cleanPhone);
+      formData.append("image", profilePicture);
+
+      if (hasFanLink) {
+        formData.append("celebToken", token || "");
+        formData.append("celebSlug", slug || "");
+      }
+
+      const response = await login(formData).unwrap();
 
       const userInfoToStore = {
         ...response,
@@ -169,6 +189,40 @@ const Register: React.FC = () => {
               Start with <span className="font-semibold">+1</span> or use your
               own country code, like <span className="font-semibold">+44</span>.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="profilePicture"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Profile Picture <span className="text-red-500">*</span>
+            </label>
+
+            <input
+              type="file"
+              id="profilePicture"
+              accept="image/png,image/jpeg,image/jpg"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setProfilePicture(file);
+              }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-white hover:file:bg-blue-500"
+            />
+
+            <p className="text-xs text-gray-500">
+              Upload your picture for your fan card.
+            </p>
+
+            {previewUrl && (
+              <div className="pt-2">
+                <img
+                  src={previewUrl}
+                  alt="Profile preview"
+                  className="h-24 w-24 rounded-full object-cover border border-gray-200 shadow-sm"
+                />
+              </div>
+            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">

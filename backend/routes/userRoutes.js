@@ -40,7 +40,7 @@ cloudinary.api
   .catch((err) => console.error("❌ Cloudinary not connected:", err.message));
 
 // 🔐 Google Login / Register
-router.post("/google", googleAuth);
+router.post("/google", upload.single("image"), googleAuth);
 
 // 🚪 Logout
 router.post("/logout", logoutUser);

@@ -41,7 +41,7 @@ const router = createBrowserRouter([
       { index: true, element: <Homepage /> },
       { path: "/login", element: <Login /> },
       {path: '/signup', element: <Register />},
-      { path: "/fan/:slug/:token", element: <Register /> },
+      { path: "register/:slug/:token", element: <Register /> },
       { path: "/admin/login", element: <AdminLogin /> },
       {path: '*', element: <NotFound />},
       {path: '/support', element: <DashboardSupport />},

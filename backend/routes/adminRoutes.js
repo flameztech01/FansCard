@@ -12,7 +12,33 @@ import {
 
 import { adminProtect } from "../middleware/authMiddleware.js";
 
+import multer from "multer";
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+
 const router = express.Router();
+
+//Cloudinary Configuration with lowercase unserscores
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "CelebrityPicture",
+    allowed_formats: ["jpg", "png", "jpeg"],
+  },
+});
+
+const upload = multer({storage});
+
+cloudinary.api.ping()
+  .then(result => console.log('✅ Cloudinary connected successfully'))
+  .catch(result => console.error('Cloudinary not fonneted', err.message));
+
 
 /**
  * AUTH
@@ -36,7 +62,7 @@ router.get("/users/:id", adminProtect, getUserById);
 router.put("/users/:id/status", adminProtect, updateUserStatusAdmin);
 
 // ✅ NEW
-router.post("/celeb-links", adminProtect, generateCelebLink);
+router.post("/celeb-links", adminProtect, upload.single('image'), generateCelebLink);
 router.get("/celeb-links", adminProtect, getGeneratedLinks);
 
 export default router;

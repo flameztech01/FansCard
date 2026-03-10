@@ -23,6 +23,7 @@ const createEmptyPaymentMethod = (): PaymentMethod => ({
 
 const GenerateLink = () => {
   const [celebName, setCelebName] = useState("");
+  const [celebPicture, setCelebPicture] = useState<File | null>(null);
   const [expiresInDays, setExpiresInDays] = useState<string>("");
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     createEmptyPaymentMethod(),
@@ -35,6 +36,7 @@ const GenerateLink = () => {
     signupLink?: string;
     expiresAt?: string | null;
     message?: string;
+    celebPicture?: string;
   } | null>(null);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -127,42 +129,50 @@ const GenerateLink = () => {
     );
   };
 
-  const buildPayload = () => {
-    const payload: any = {
-      celebName: celebName.trim(),
-      paymentMethods: paymentMethods.map((method) => {
-        const detailsObject = method.details.reduce<Record<string, string>>(
-          (acc, detail) => {
-            const cleanKey = detail.key.trim();
-            const cleanValue = detail.value.trim();
+  const buildFormData = () => {
+    const normalizedPaymentMethods = paymentMethods.map((method) => {
+      const detailsObject = method.details.reduce<Record<string, string>>(
+        (acc, detail) => {
+          const cleanKey = detail.key.trim();
+          const cleanValue = detail.value.trim();
 
-            if (cleanKey && cleanValue) {
-              acc[cleanKey] = cleanValue;
-            }
+          if (cleanKey && cleanValue) {
+            acc[cleanKey] = cleanValue;
+          }
 
-            return acc;
-          },
-          {}
-        );
+          return acc;
+        },
+        {}
+      );
 
-        return {
-          methodId: method.methodId,
-          type: method.type.trim().toLowerCase(),
-          label: method.label.trim(),
-          details: detailsObject,
-        };
-      }),
-    };
+      return {
+        methodId: method.methodId,
+        type: method.type.trim().toLowerCase(),
+        label: method.label.trim(),
+        details: detailsObject,
+      };
+    });
+
+    const formData = new FormData();
+    formData.append("celebName", celebName.trim());
+    formData.append("paymentMethods", JSON.stringify(normalizedPaymentMethods));
+
+    if (celebPicture) {
+      formData.append("image", celebPicture);
+    }
 
     if (expiresInDays.trim() !== "") {
       const n = Number(expiresInDays);
       if (Number.isNaN(n) || n <= 0) {
         throw new Error("expiresInDays must be a valid number greater than 0");
       }
-      payload.expiresInDays = n;
+      formData.append("expiresInDays", String(n));
     }
 
-    return payload;
+    return {
+      formData,
+      normalizedPaymentMethods,
+    };
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -172,10 +182,10 @@ const GenerateLink = () => {
     setResult(null);
 
     try {
-      const payload = buildPayload();
+      const { formData, normalizedPaymentMethods } = buildFormData();
 
-      for (let i = 0; i < payload.paymentMethods.length; i++) {
-        const method = payload.paymentMethods[i];
+      for (let i = 0; i < normalizedPaymentMethods.length; i++) {
+        const method = normalizedPaymentMethods[i];
 
         if (!method.type) {
           setErrorMsg(`Payment method ${i + 1}: type is required`);
@@ -193,7 +203,7 @@ const GenerateLink = () => {
         }
       }
 
-      const res: any = await generateLink(payload).unwrap();
+      const res: any = await generateLink(formData).unwrap();
       setResult(res);
     } catch (err: any) {
       const msg =
@@ -244,6 +254,34 @@ const GenerateLink = () => {
               <p className="text-xs text-gray-500 mt-2">
                 Minimum 2 characters.
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Celebrity Picture <span className="text-gray-500">(optional)</span>
+              </label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={(e) => setCelebPicture(e.target.files?.[0] || null)}
+                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-sm outline-none focus:border-blue-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-white hover:file:bg-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Upload celeb image. Accepted: jpg, jpeg, png.
+              </p>
+
+              {celebPicture && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">
+                    Selected: {celebPicture.name}
+                  </p>
+                  <img
+                    src={URL.createObjectURL(celebPicture)}
+                    alt="Celeb preview"
+                    className="w-24 h-24 object-cover rounded-lg border border-gray-800"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -461,6 +499,17 @@ const GenerateLink = () => {
                   </p>
                 </div>
               </div>
+
+              {result?.celebPicture && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-400 mb-2">Celebrity Picture</p>
+                  <img
+                    src={result.celebPicture}
+                    alt={result.celebName || "Celebrity"}
+                    className="w-24 h-24 object-cover rounded-lg border border-gray-800"
+                  />
+                </div>
+              )}
 
               <div className="mt-4">
                 <p className="text-sm text-gray-400 mb-2">Signup Link</p>

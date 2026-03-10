@@ -1,4 +1,3 @@
-// DashboardCard.tsx (UPDATED: adds Celebrity name to the card)
 import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -20,7 +19,9 @@ import {
   MapPin,
   Globe,
   Award,
-  Heart, // ✅ NEW
+  Heart,
+  Sparkles,
+  ScanLine,
 } from "lucide-react";
 import { useGetUserInfoQuery } from "../slices/userApiSlice";
 import { toPng } from "html-to-image";
@@ -28,8 +29,8 @@ import jsPDF from "jspdf";
 
 interface PackageDetails {
   name: string;
-  bgGradientCss: string; // HEX/RGB gradient only
-  badgeBg: string; // HEX/RGB only
+  bgGradientCss: string;
+  badgeBg: string;
   icon: React.ReactNode;
   features: string[];
 }
@@ -37,28 +38,45 @@ interface PackageDetails {
 const packageDetails: Record<string, PackageDetails> = {
   basic: {
     name: "Basic",
-    bgGradientCss: "linear-gradient(135deg, #374151 0%, #111827 100%)",
+    bgGradientCss: "linear-gradient(135deg, #1F2937 0%, #111827 100%)",
     badgeBg: "#4B5563",
     icon: <Star className="h-3 w-3" />,
     features: ["Digital Card", "Basic Benefits", "Newsletter"],
   },
   standard: {
     name: "Standard",
-    bgGradientCss: "linear-gradient(135deg, #1D4ED8 0%, #1E3A8A 100%)",
+    bgGradientCss:
+      "linear-gradient(135deg, #0F172A 0%, #1D4ED8 55%, #1E3A8A 100%)",
     badgeBg: "#2563EB",
     icon: <Zap className="h-3 w-3" />,
-    features: ["Digital Card", "Standard Benefits", "Event Access", "10% Discount"],
+    features: [
+      "Digital Card",
+      "Standard Benefits",
+      "Event Access",
+      "10% Discount",
+    ],
   },
   premium: {
     name: "Premium",
-    bgGradientCss: "linear-gradient(135deg, #7E22CE 0%, #831843 100%)",
+    bgGradientCss:
+      "linear-gradient(135deg, #111827 0%, #581C87 45%, #831843 100%)",
     badgeBg: "#9333EA",
     icon: <Crown className="h-3 w-3" />,
-    features: ["Digital Card", "Premium Benefits", "VIP Access", "Merch Discount", "Meet & Greet"],
+    features: [
+      "Digital Card",
+      "Premium Benefits",
+      "VIP Access",
+      "Merch Discount",
+      "Meet & Greet",
+    ],
   },
 };
 
-const ID_CARD_MM = { w: 85.6, h: 54 };
+const CARD_W_MM = 85.6;
+const CARD_H_MM = 54;
+const CARD_GAP_MM = 8;
+const MM_TO_PX = 3.7795275591;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const waitForFonts = async () => {
@@ -82,20 +100,24 @@ const waitForImages = async (root: HTMLElement) => {
 
 const DashboardCard: React.FC = () => {
   const { data: userInfo, isLoading, error, refetch } = useGetUserInfoQuery({});
-  const cardRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
 
-  // picture saved during login
   const googlePicture = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem("userInfo") || "null")?.picture as string | undefined;
+      return JSON.parse(localStorage.getItem("userInfo") || "null")?.picture as
+        | string
+        | undefined;
     } catch {
       return undefined;
     }
   }, []);
 
-  const celebName = (userInfo?.celebName || "").trim(); // ✅ NEW
+  const celebName = (userInfo?.celebName || "").trim();
+  const celebPicture = (userInfo?.celebPicture || "").trim();
+  const profilePicture = (userInfo?.profilePicture || "").trim();
+  const hasCelebPicture = Boolean(celebPicture);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "—";
@@ -104,13 +126,6 @@ const DashboardCard: React.FC = () => {
       month: "short",
       day: "numeric",
     });
-  };
-
-  const getExpiryDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    const date = new Date(dateString);
-    date.setFullYear(date.getFullYear() + 2);
-    return date.toLocaleDateString("en-US", { month: "2-digit", year: "2-digit" });
   };
 
   const formatCardId = (cardId?: string) => {
@@ -129,41 +144,54 @@ const DashboardCard: React.FC = () => {
       .toUpperCase()
       .slice(0, 2);
 
-  // ✅ capture via html-to-image
-  const captureCardPng = async () => {
-    if (!cardRef.current) return null;
-    const el = cardRef.current;
+  const getDisplayUserPicture = () => profilePicture || googlePicture || "";
 
+  const EXPORT_W_PX = Math.round(CARD_W_MM * MM_TO_PX);
+  const EXPORT_H_PX = Math.round((CARD_H_MM * 2 + CARD_GAP_MM) * MM_TO_PX);
+
+  const captureExportPng = async () => {
+    if (!exportRef.current) return null;
+
+    const el = exportRef.current;
     await waitForFonts();
     await waitForImages(el);
 
-    const dataUrl = await toPng(el, {
+    return toPng(el, {
       cacheBust: true,
-      pixelRatio: 4,
+      pixelRatio: 3,
       backgroundColor: "#ffffff",
-      style: { transform: "none" },
+      width: EXPORT_W_PX,
+      height: EXPORT_H_PX,
+      canvasWidth: EXPORT_W_PX,
+      canvasHeight: EXPORT_H_PX,
+      style: {
+        width: `${EXPORT_W_PX}px`,
+        height: `${EXPORT_H_PX}px`,
+        transform: "none",
+        margin: "0",
+        padding: "0",
+      },
     });
-
-    return dataUrl;
   };
 
-  // ✅ Download PDF (ID-1 size)
   const handleDownloadCard = async () => {
-    if (!userInfo?.cardId || !cardRef.current) return;
+    if (!userInfo?.cardId || !exportRef.current) return;
 
     setDownloading(true);
     try {
-      const imgData = await captureCardPng();
+      const imgData = await captureExportPng();
       if (!imgData) return;
 
+      const pdfHeight = CARD_H_MM * 2 + CARD_GAP_MM;
+
       const pdf = new jsPDF({
-        orientation: "landscape",
+        orientation: "portrait",
         unit: "mm",
-        format: [ID_CARD_MM.w, ID_CARD_MM.h],
+        format: [CARD_W_MM, pdfHeight],
         compress: true,
       });
 
-      pdf.addImage(imgData, "PNG", 0, 0, ID_CARD_MM.w, ID_CARD_MM.h);
+      pdf.addImage(imgData, "PNG", 0, 0, CARD_W_MM, pdfHeight);
 
       const safeId = String(userInfo.cardId).replace(/[^a-zA-Z0-9-_]/g, "");
       pdf.save(`fancard-${safeId || "card"}.pdf`);
@@ -175,23 +203,25 @@ const DashboardCard: React.FC = () => {
     }
   };
 
-  // ✅ Print HTML directly (best quality)
   const handlePrintCard = async () => {
-    if (!cardRef.current) return;
+    if (!exportRef.current) return;
 
     setPrinting(true);
     try {
       await waitForFonts();
-      await waitForImages(cardRef.current);
+      await waitForImages(exportRef.current);
 
-      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+      const printWindow = window.open(
+        "",
+        "_blank",
+        "noopener,noreferrer,width=1000,height=1400"
+      );
       if (!printWindow) {
         alert("Popup blocked. Allow popups to print the card.");
         return;
       }
 
-      const title = `Fan Card - ${userInfo?.name || "Card"}`;
-      const cardHTML = cardRef.current.outerHTML;
+      const cardsHTML = exportRef.current.outerHTML;
 
       printWindow.document.open();
       printWindow.document.write(`
@@ -200,26 +230,34 @@ const DashboardCard: React.FC = () => {
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>${title}</title>
-
-            <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-
+            <title>Fan Card</title>
+            <script src="https://cdn.tailwindcss.com"></script>
             <style>
-              @page { size: ${ID_CARD_MM.w}mm ${ID_CARD_MM.h}mm; margin: 0; }
-              html, body { margin: 0; padding: 0; background: #fff; }
-              body { display:flex; align-items:center; justify-content:center; height: 100vh; }
-              .print-card { width: ${ID_CARD_MM.w}mm !important; height: ${ID_CARD_MM.h}mm !important; }
+              @page {
+                size: ${CARD_W_MM}mm ${CARD_H_MM * 2 + CARD_GAP_MM}mm;
+                margin: 0;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                background: #ffffff;
+              }
+              body {
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+              }
             </style>
           </head>
           <body>
-            <div class="print-card">${cardHTML}</div>
+            ${cardsHTML}
             <script>
               window.onload = function () {
                 setTimeout(function () {
                   window.focus();
                   window.print();
                   window.onafterprint = function () { window.close(); };
-                }, 200);
+                }, 300);
               };
             </script>
           </body>
@@ -234,9 +272,364 @@ const DashboardCard: React.FC = () => {
     }
   };
 
-  // =========================
-  // LOADING
-  // =========================
+  const CardShell = ({
+    children,
+    gradient,
+  }: {
+    children: React.ReactNode;
+    gradient: string;
+  }) => (
+    <div
+      className="relative overflow-hidden rounded-[18px] border border-white/20 font-sans shadow-2xl"
+      style={{
+        width: "85.6mm",
+        height: "54mm",
+        background: gradient,
+        flexShrink: 0,
+      }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at top left, rgba(255,255,255,0.22), transparent 28%), radial-gradient(circle at bottom right, rgba(255,255,255,0.12), transparent 30%)",
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(135deg, rgba(255,255,255,0.22) 0 2px, transparent 2px 12px)",
+        }}
+      />
+      <div
+        className="absolute top-0 left-0 right-0 h-[4px]"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(255,255,255,0.2), #FACC15, rgba(255,255,255,0.9), #FACC15, rgba(255,255,255,0.2))",
+        }}
+      />
+      <div
+        className="absolute right-3 top-3 w-12 h-12 rounded-full blur-2xl opacity-30"
+        style={{ background: "rgba(255,255,255,0.45)" }}
+      />
+      {children}
+    </div>
+  );
+
+  const DetailBox = ({
+    label,
+    value,
+  }: {
+    label: string;
+    value: React.ReactNode;
+  }) => (
+    <div
+      className="rounded-xl p-2"
+      style={{
+        background: "rgba(255,255,255,0.10)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        backdropFilter: "blur(6px)",
+      }}
+    >
+      <p className="text-[6px] tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+        {label}
+      </p>
+      <div className="mt-1 text-[8px] font-semibold leading-tight">{value}</div>
+    </div>
+  );
+
+  const packageType = userInfo?.packageType || "basic";
+  const pkg = packageDetails[packageType] || packageDetails.basic;
+
+  const frontGradient = hasCelebPicture
+    ? "linear-gradient(135deg, #050816 0%, #13213d 30%, #4f46e5 62%, #7c3aed 100%)"
+    : pkg.bgGradientCss;
+
+  const backGradient =
+    "linear-gradient(135deg, #030712 0%, #111827 35%, #1F2937 65%, #0B1120 100%)";
+
+  const FrontCard = () => (
+    <CardShell gradient={frontGradient}>
+      <div className="relative z-10 h-full p-3 text-white flex flex-col">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className="h-9 w-9 rounded-xl flex items-center justify-center"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.18)",
+              }}
+            >
+              <Shield className="h-5 w-5" />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-black tracking-[0.22em]">FANCARD</span>
+                <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+              </div>
+
+              <div className="flex items-center gap-1 mt-1">
+                <span
+                  className="text-[8px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                  style={{
+                    background: "rgba(255,255,255,0.14)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                  }}
+                >
+                  {pkg.icon}
+                  {pkg.name} ELITE
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="px-2 py-1 rounded-full text-[7px] font-bold tracking-[0.18em]"
+            style={{
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.18)",
+            }}
+          >
+            LIFETIME
+          </div>
+        </div>
+
+        {!hasCelebPicture ? (
+          <>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-[7px] tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.58)" }}>
+                  CARD HOLDER
+                </p>
+
+                <p className="text-[15px] font-black tracking-[0.08em] mt-1 leading-tight">
+                  {String(userInfo?.name || "").toUpperCase()}
+                </p>
+
+                <div
+                  className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1"
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.16)",
+                  }}
+                >
+                  <Heart className="h-3 w-3 text-pink-300" />
+                  <span className="text-[7px] font-semibold tracking-[0.14em]">
+                    FAN OF {celebName ? celebName.toUpperCase() : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {getDisplayUserPicture() ? (
+                <div
+                  className="h-[70px] w-[70px] rounded-2xl overflow-hidden shadow-2xl"
+                  style={{
+                    border: "2px solid rgba(255,255,255,0.92)",
+                    background: "#fff",
+                  }}
+                >
+                  <img
+                    src={getDisplayUserPicture()}
+                    alt={userInfo?.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="h-[70px] w-[70px] rounded-2xl flex items-center justify-center text-2xl font-bold shadow-2xl"
+                  style={{
+                    border: "2px solid rgba(255,255,255,0.92)",
+                    background: "rgba(255,255,255,0.16)",
+                  }}
+                >
+                  {getInitials(userInfo?.name || "F")}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-auto grid grid-cols-2 gap-2">
+              <DetailBox
+                label="MEMBER ID"
+                value={<span className="font-mono">{formatCardId(userInfo?.cardId)}</span>}
+              />
+              <DetailBox label="TIER" value={pkg.name} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-3 flex-1">
+              <div
+                className="rounded-2xl p-3 flex flex-col items-center justify-center text-center"
+                style={{
+                  background: "rgba(255,255,255,0.10)",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                <p className="text-[7px] tracking-[0.22em] mb-2" style={{ color: "rgba(255,255,255,0.60)" }}>
+                  CELEBRITY
+                </p>
+
+                <div
+                  className="h-[68px] w-[68px] rounded-2xl overflow-hidden shadow-xl"
+                  style={{ border: "2px solid rgba(255,255,255,0.92)", background: "#fff" }}
+                >
+                  <img
+                    src={celebPicture}
+                    alt={celebName || "Celebrity"}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                <p className="mt-2 text-[9px] font-black tracking-[0.1em] leading-tight">
+                  {celebName ? celebName.toUpperCase() : "—"}
+                </p>
+              </div>
+
+              <div
+                className="rounded-2xl p-3 flex flex-col items-center justify-center text-center"
+                style={{
+                  background: "rgba(255,255,255,0.10)",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                <p className="text-[7px] tracking-[0.22em] mb-2" style={{ color: "rgba(255,255,255,0.60)" }}>
+                  FAN
+                </p>
+
+                {getDisplayUserPicture() ? (
+                  <div
+                    className="h-[68px] w-[68px] rounded-2xl overflow-hidden shadow-xl"
+                    style={{ border: "2px solid rgba(255,255,255,0.92)", background: "#fff" }}
+                  >
+                    <img
+                      src={getDisplayUserPicture()}
+                      alt={userInfo?.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="h-[68px] w-[68px] rounded-2xl flex items-center justify-center text-2xl font-bold shadow-xl"
+                    style={{
+                      border: "2px solid rgba(255,255,255,0.92)",
+                      background: "rgba(255,255,255,0.16)",
+                    }}
+                  >
+                    {getInitials(userInfo?.name || "F")}
+                  </div>
+                )}
+
+                <p className="mt-2 text-[9px] font-black tracking-[0.1em] leading-tight">
+                  {String(userInfo?.name || "").toUpperCase()}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-auto">
+              <DetailBox
+                label="MEMBER ID"
+                value={<span className="font-mono">{formatCardId(userInfo?.cardId)}</span>}
+              />
+              <DetailBox label="TIER" value={pkg.name} />
+            </div>
+          </>
+        )}
+
+        <div className="absolute right-2 bottom-10 opacity-20">
+          <ScanLine className="h-10 w-10" />
+        </div>
+      </div>
+    </CardShell>
+  );
+
+  const BackCard = () => (
+    <CardShell gradient={backGradient}>
+      <div className="relative z-10 h-full p-3 text-white flex flex-col">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black tracking-[0.22em]">CARD DETAILS</span>
+              <CreditCard className="h-4 w-4 text-white/80" />
+            </div>
+            <p className="text-[7px] mt-1 tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.56)" }}>
+              VERIFIED MEMBER INFORMATION
+            </p>
+          </div>
+
+          <div
+            className="px-2 py-1 rounded-full text-[7px] font-bold tracking-[0.18em]"
+            style={{
+              background: "rgba(255,255,255,0.10)",
+              border: "1px solid rgba(255,255,255,0.16)",
+            }}
+          >
+            BACK
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <DetailBox label="FULL NAME" value={userInfo?.name || "—"} />
+          <DetailBox label="FAN OF" value={celebName || "—"} />
+          <DetailBox
+            label="EMAIL"
+            value={<span className="break-all">{userInfo?.email || "—"}</span>}
+          />
+          <DetailBox label="PHONE" value={userInfo?.phone || "—"} />
+          <DetailBox
+            label="CARD NUMBER"
+            value={<span className="font-mono">{formatCardId(userInfo?.cardId)}</span>}
+          />
+          <DetailBox label="MEMBER SINCE" value={formatDate(userInfo?.createdAt)} />
+          <DetailBox label="VALIDITY" value="LIFETIME" />
+          <DetailBox label="PACKAGE" value={pkg.name} />
+        </div>
+
+        <div
+          className="mt-3 rounded-xl px-3 py-2"
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Globe className="h-3 w-3 text-white/70" />
+              <span className="text-[7px] tracking-[0.16em] text-white/70">
+                VERIFY AT FANCARD.COM/VERIFY
+              </span>
+            </div>
+            <div className="flex gap-1">
+              <div className="w-2 h-2 rounded-full bg-yellow-300" />
+              <div className="w-2 h-2 rounded-full bg-sky-400" />
+              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto flex justify-between items-end">
+          <div>
+            <p className="text-[6px] tracking-[0.18em] text-white/45">SYSTEM ID</p>
+            <p className="text-[8px] font-mono text-white/75">
+              {String(userInfo?._id || "").slice(-8)}
+            </p>
+          </div>
+
+          <div
+            className="h-8 w-20 rounded-md"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(255,255,255,0.14), rgba(255,255,255,0.32), rgba(255,255,255,0.14))",
+            }}
+          />
+        </div>
+      </div>
+    </CardShell>
+  );
+
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -251,9 +644,6 @@ const DashboardCard: React.FC = () => {
     );
   }
 
-  // =========================
-  // NOT SIGNED IN / ERROR
-  // =========================
   if (error || !userInfo) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -272,26 +662,23 @@ const DashboardCard: React.FC = () => {
     );
   }
 
-  // =========================
-  // PENDING PAYMENT
-  // =========================
   if (userInfo.status === "pending_payment") {
-    const selectedPkg = userInfo.packageType ? packageDetails[userInfo.packageType] : undefined;
+    const selectedPkg = userInfo.packageType
+      ? packageDetails[userInfo.packageType]
+      : undefined;
 
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="flex items-center space-x-4">
-            {googlePicture ? (
+            {getDisplayUserPicture() ? (
               <img
-                src={googlePicture}
+                src={getDisplayUserPicture()}
                 alt={userInfo.name}
-                crossOrigin="anonymous"
-                referrerPolicy="no-referrer"
-                className="h-12 w-12 rounded-full border-2 border-gray-200"
+                className="h-12 w-12 rounded-xl border-2 border-gray-200 object-cover"
               />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
                 {userInfo.name?.charAt(0) || "F"}
               </div>
             )}
@@ -300,13 +687,10 @@ const DashboardCard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
               </h2>
-
-              {/* ✅ show celeb name here too */}
               <p className="text-sm text-gray-600 flex items-center gap-1">
                 <Heart className="h-4 w-4 text-red-500" />
                 Fan of: <span className="font-semibold">{celebName || "—"}</span>
               </p>
-
               <p className="text-sm text-gray-500 flex items-center gap-1">
                 <Mail className="h-4 w-4" /> {userInfo.email}
               </p>
@@ -336,7 +720,7 @@ const DashboardCard: React.FC = () => {
                       )}
                       {userInfo.amount && (
                         <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
-                          Amount: ₦{Number(userInfo.amount).toLocaleString()}
+                          Amount: ${Number(userInfo.amount).toLocaleString()}
                         </span>
                       )}
                     </div>
@@ -358,24 +742,19 @@ const DashboardCard: React.FC = () => {
     );
   }
 
-  // =========================
-  // PENDING VERIFICATION
-  // =========================
   if (userInfo.status === "pending_verification") {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="flex items-center space-x-4">
-            {googlePicture ? (
+            {getDisplayUserPicture() ? (
               <img
-                src={googlePicture}
+                src={getDisplayUserPicture()}
                 alt={userInfo.name}
-                crossOrigin="anonymous"
-                referrerPolicy="no-referrer"
-                className="h-12 w-12 rounded-full border-2 border-gray-200"
+                className="h-12 w-12 rounded-xl border-2 border-gray-200 object-cover"
               />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
                 {userInfo.name?.charAt(0) || "F"}
               </div>
             )}
@@ -383,13 +762,10 @@ const DashboardCard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
               </h2>
-
-              {/* ✅ show celeb name here too */}
               <p className="text-sm text-gray-600 flex items-center gap-1">
                 <Heart className="h-4 w-4 text-red-500" />
                 Fan of: <span className="font-semibold">{celebName || "—"}</span>
               </p>
-
               <p className="text-sm text-gray-500">{userInfo.email}</p>
             </div>
           </div>
@@ -404,7 +780,6 @@ const DashboardCard: React.FC = () => {
                   </h3>
                   <p className="text-sm text-blue-700 mt-1">
                     Thank you for your payment! Your card is being verified by our team.
-                    This usually takes 24-48 hours. We'll notify you once it's approved.
                   </p>
                   {userInfo.paymentDate && (
                     <p className="text-xs text-blue-600 mt-2">
@@ -420,13 +795,7 @@ const DashboardCard: React.FC = () => {
     );
   }
 
-  // =========================
-  // APPROVED (SHOW CARD)
-  // =========================
   if (userInfo.status === "approved") {
-    const packageType = userInfo.packageType || "basic";
-    const pkg = packageDetails[packageType] || packageDetails.basic;
-
     if (!userInfo.cardId) {
       return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -437,7 +806,6 @@ const DashboardCard: React.FC = () => {
                 <h3 className="font-semibold text-gray-900">Approved ✅</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Your payment has been approved, but your card number is still being issued.
-                  Click refresh in a moment.
                 </p>
               </div>
             </div>
@@ -455,20 +823,17 @@ const DashboardCard: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 no-print">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center space-x-4">
-              {googlePicture ? (
+              {getDisplayUserPicture() ? (
                 <img
-                  src={googlePicture}
+                  src={getDisplayUserPicture()}
                   alt={userInfo.name}
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                  className="h-14 w-14 rounded-full border-2 border-blue-500"
+                  className="h-14 w-14 rounded-xl border-2 border-blue-500 object-cover"
                 />
               ) : (
-                <div className="h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                <div className="h-14 w-14 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
                   {getInitials(userInfo.name)}
                 </div>
               )}
@@ -476,13 +841,10 @@ const DashboardCard: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Welcome back, {userInfo.name?.split(" ")[0]}! 👋
                 </h2>
-
-                {/* ✅ show celeb name here too */}
                 <p className="text-sm text-gray-700 flex items-center gap-1 mt-1">
                   <Heart className="h-4 w-4 text-red-500" />
                   Fan of: <span className="font-semibold">{celebName || "—"}</span>
                 </p>
-
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                   <span className="flex items-center text-sm text-gray-500">
                     <Mail className="h-3 w-3 mr-1" /> {userInfo.email}
@@ -497,7 +859,6 @@ const DashboardCard: React.FC = () => {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleDownloadCard}
@@ -507,243 +868,95 @@ const DashboardCard: React.FC = () => {
                 }`}
               >
                 <Download className="h-4 w-4 mr-2" />
-                {downloading ? "Preparing..." : "Download ID Card"}
+                {downloading ? "Preparing..." : "Download Card"}
               </button>
 
               <button
                 onClick={handlePrintCard}
                 disabled={printing}
                 className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm text-white ${
-                  printing ? "bg-gray-400 cursor-not-allowed" : "bg-gray-600 hover:bg-gray-700"
+                  printing ? "bg-gray-400 cursor-not-allowed" : "bg-gray-700 hover:bg-gray-800"
                 }`}
               >
                 <Printer className="h-4 w-4 mr-2" />
-                {printing ? "Opening..." : "Print ID Card"}
+                {printing ? "Opening..." : "Print Card"}
               </button>
             </div>
           </div>
 
-          {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
             <div className="text-center">
               <p className="text-2xl font-bold text-gray-900">{pkg.name}</p>
               <p className="text-xs text-gray-500">Membership Tier</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">{formatCardId(userInfo.cardId)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {formatCardId(userInfo.cardId)}
+              </p>
               <p className="text-xs text-gray-500">Card Number</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">{getExpiryDate(userInfo.createdAt)}</p>
-              <p className="text-xs text-gray-500">Expiry Date</p>
+              <p className="text-2xl font-bold text-gray-900">LIFETIME</p>
+              <p className="text-xs text-gray-500">Validity</p>
             </div>
           </div>
         </div>
 
-        {/* Card */}
+        {/* visible preview */}
         <div className="flex justify-center">
-          <div
-            ref={cardRef}
-            className="relative w-[85.6mm] h-[54mm] overflow-hidden rounded-xl shadow-2xl print:shadow-none border-2 border-gray-300 font-sans"
-            style={{ background: pkg.bgGradientCss }}
-          >
-            {/* Secure Pattern */}
-            <div
-              className="absolute inset-0"
-              style={{
-                opacity: 0.06,
-                backgroundImage:
-                  "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.22) 8px, rgba(255,255,255,0.22) 16px)",
-              }}
-            />
-
-            {/* Top Accent */}
-            <div
-              className="absolute top-0 left-0 right-0"
-              style={{
-                height: "4px",
-                background: "linear-gradient(90deg, #FACC15, #FFFFFF, #FACC15)",
-              }}
-            />
-
-            {/* Content */}
-            <div className="relative z-10 p-3 h-full flex flex-col text-white">
-              {/* Header Row */}
-              <div className="flex justify-between items-start">
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-5 w-5 text-white" />
-                  <div>
-                    <span className="text-sm font-black tracking-[0.2em]">FANCARD</span>
-
-                    {/* ✅ Tier badge */}
-                    <div className="flex items-center space-x-1 mt-0.5">
-                      {pkg.icon}
-                      <span
-                        className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
-                        style={{ backgroundColor: pkg.badgeBg, opacity: 0.95 }}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          <Award className="h-3 w-3" />
-                          {pkg.name} ELITE
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* ✅ NEW: Celebrity line */}
-                    <div className="mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5"
-                      style={{ background: "rgba(255,255,255,0.14)" }}
-                    >
-                      <Heart className="h-3 w-3 text-red-300" />
-                      <span className="text-[7px] font-semibold tracking-wide">
-                        FAN OF: {celebName ? celebName.toUpperCase() : "—"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Avatar */}
-                {googlePicture ? (
-                  <div
-                    className="h-14 w-14 rounded-full overflow-hidden shadow-lg"
-                    style={{ border: "2px solid rgba(255,255,255,0.9)", background: "#fff" }}
-                  >
-                    <img
-                      src={googlePicture}
-                      alt={userInfo.name}
-                      crossOrigin="anonymous"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="h-14 w-14 rounded-full flex items-center justify-center font-bold text-2xl shadow-lg"
-                    style={{
-                      border: "2px solid rgba(255,255,255,0.9)",
-                      background: "rgba(255,255,255,0.18)",
-                      backdropFilter: "blur(6px)",
-                    }}
-                  >
-                    {getInitials(userInfo.name)}
-                  </div>
-                )}
-              </div>
-
-              {/* Name */}
-              <div className="mt-1">
-                <p className="text-[8px] tracking-wider" style={{ color: "rgba(255,255,255,0.6)" }}>
-                  CARD HOLDER
-                </p>
-                <div className="flex items-baseline justify-between">
-                  <p className="text-sm font-black tracking-wide">{String(userInfo.name).toUpperCase()}</p>
-                  <span
-                    className="text-[6px] px-1 py-0.5 rounded"
-                    style={{ background: "rgba(255,255,255,0.2)" }}
-                  >
-                    LIFETIME
-                  </span>
-                </div>
-              </div>
-
-              {/* Details */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-1 text-[8px]">
-                <div className="rounded p-1" style={{ background: "rgba(255,255,255,0.10)" }}>
-                  <p className="text-[6px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    MEMBER ID
-                  </p>
-                  <p className="font-mono font-bold truncate">{formatCardId(userInfo.cardId)}</p>
-                </div>
-                <div className="rounded p-1" style={{ background: "rgba(255,255,255,0.10)" }}>
-                  <p className="text-[6px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    ISSUE DATE
-                  </p>
-                  <p className="font-bold">{formatDate(userInfo.createdAt)}</p>
-                </div>
-                <div className="rounded p-1" style={{ background: "rgba(255,255,255,0.10)" }}>
-                  <p className="text-[6px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    EXPIRY
-                  </p>
-                  <p className="font-bold">{getExpiryDate(userInfo.createdAt)}</p>
-                </div>
-                <div className="rounded p-1" style={{ background: "rgba(255,255,255,0.10)" }}>
-                  <p className="text-[6px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    TIER
-                  </p>
-                  <p className="font-bold">{pkg.name}</p>
-                </div>
-              </div>
-
-              {/* Strip */}
-              <div className="mt-1 flex items-center space-x-1">
-                <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: "rgba(255,255,255,0.20)" }}>
-                  <span className="text-[6px]">●●</span>
-                </div>
-                <div
-                  className="flex-1 h-1 rounded-full"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, rgba(255,255,255,0.4), rgba(255,255,255,0.65), rgba(255,255,255,0.4))",
-                  }}
-                />
-                <div className="h-4 w-4 rounded flex items-center justify-center" style={{ background: "rgba(255,255,255,0.20)" }}>
-                  <span className="text-[6px]">●●</span>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="mt-auto pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.20)" }}>
-                <div className="flex justify-between items-center text-[5px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  <div className="flex items-center space-x-2">
-                    <Globe className="h-2 w-2" />
-                    <span>fancard.com/verify</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MapPin className="h-2 w-2" />
-                    <span>{String(userInfo.email).split("@")[1] || "global"}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center mt-0.5">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 rounded-full" style={{ background: "#FACC15" }} />
-                    <div className="w-2 h-2 rounded-full" style={{ background: "#60A5FA" }} />
-                    <div className="w-2 h-2 rounded-full" style={{ background: "#4ADE80" }} />
-                  </div>
-                  <span className="text-[4px] font-mono" style={{ color: "rgba(255,255,255,0.35)" }}>
-                    {String(userInfo._id || "").slice(-8)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Holographic stripe */}
-              <div
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-16"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(250,204,21,0.75), rgba(192,132,252,0.65), rgba(96,165,250,0.65))",
-                  opacity: 0.65,
-                }}
-              />
-
-              {/* Microchip */}
-              <div className="absolute left-1 bottom-6" style={{ opacity: 0.2 }}>
-                <CreditCard className="h-6 w-6" />
-              </div>
-            </div>
+          <div className="flex flex-col items-center gap-8">
+            <FrontCard />
+            <BackCard />
           </div>
         </div>
 
-        {/* Card Features */}
+        {/* hidden export layout */}
+        <div
+          style={{
+            position: "fixed",
+            left: "-10000px",
+            top: "0",
+            width: `${EXPORT_W_PX}px`,
+            height: `${EXPORT_H_PX}px`,
+            overflow: "hidden",
+            background: "#ffffff",
+            zIndex: -1,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            ref={exportRef}
+            style={{
+              width: "85.6mm",
+              height: `${CARD_H_MM * 2 + CARD_GAP_MM}mm`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              gap: `${CARD_GAP_MM}mm`,
+              padding: "0",
+              margin: "0",
+              background: "#ffffff",
+              boxSizing: "border-box",
+            }}
+          >
+            <FrontCard />
+            <BackCard />
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-4 no-print">
           {pkg.features.map((feature, index) => (
-            <div key={index} className="bg-white rounded-lg p-3 border border-gray-100 flex items-center space-x-2">
+            <div
+              key={index}
+              className="bg-white rounded-lg p-3 border border-gray-100 flex items-center space-x-2"
+            >
               <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
               <span className="text-sm text-gray-700">{feature}</span>
             </div>
           ))}
         </div>
 
-        {/* Quick Actions */}
         <div className="flex justify-between items-center no-print">
           <Link to="/support" className="text-sm text-blue-600 hover:text-blue-700">
             Need help with your card?
@@ -760,24 +973,19 @@ const DashboardCard: React.FC = () => {
     );
   }
 
-  // =========================
-  // REJECTED
-  // =========================
   if (userInfo.status === "rejected") {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="flex items-center space-x-4">
-            {googlePicture ? (
+            {getDisplayUserPicture() ? (
               <img
-                src={googlePicture}
+                src={getDisplayUserPicture()}
                 alt={userInfo.name}
-                crossOrigin="anonymous"
-                referrerPolicy="no-referrer"
-                className="h-12 w-12 rounded-full border-2 border-gray-200"
+                className="h-12 w-12 rounded-xl border-2 border-gray-200 object-cover"
               />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">
                 {userInfo.name?.charAt(0) || "F"}
               </div>
             )}
@@ -785,13 +993,10 @@ const DashboardCard: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Welcome, {userInfo.name?.split(" ")[0] || "Fan"}! 👋
               </h2>
-
-              {/* ✅ show celeb name here too */}
               <p className="text-sm text-gray-600 flex items-center gap-1">
                 <Heart className="h-4 w-4 text-red-500" />
                 Fan of: <span className="font-semibold">{celebName || "—"}</span>
               </p>
-
               <p className="text-sm text-gray-500">{userInfo.email}</p>
             </div>
           </div>
@@ -828,9 +1033,6 @@ const DashboardCard: React.FC = () => {
     );
   }
 
-  // =========================
-  // FALLBACK (unknown status)
-  // =========================
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
       <div className="flex items-start space-x-3">
@@ -847,7 +1049,10 @@ const DashboardCard: React.FC = () => {
             >
               Refresh
             </button>
-            <Link to="/support" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+            <Link
+              to="/support"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
               Contact Support
             </Link>
           </div>
