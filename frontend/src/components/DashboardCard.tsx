@@ -16,7 +16,6 @@ import {
   Star,
   Zap,
   Crown,
-  MapPin,
   Globe,
   Award,
   Heart,
